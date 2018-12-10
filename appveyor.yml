@@ -13,3 +13,14 @@ test_script:
     unit_test.bat
 
     appveyor_test.bat
+      
+artifacts:
+- path: '**\*.nupkg'
+deploy:
+- provider: NuGet
+  server: https://www.myget.org/F/280capmarkets/api/v2/package
+  api_key:
+      secure: pBTga3EQD0q+d1HVCa/5jGmsk2+DP49SsMtAq7EyfhJYC6kPvZQdbzvJ3DlcMbd9
+  skip_symbols: true
+  on:
+      branch: master
