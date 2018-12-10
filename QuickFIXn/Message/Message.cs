@@ -54,7 +54,8 @@ namespace QuickFix
 
         public Header Header { get; private set; }
         public Trailer Trailer { get; private set; }
-        
+        public string RawMessage { get; private set; }
+
         #endregion
 
         #region Constructors
@@ -390,6 +391,9 @@ namespace QuickFix
             bool ignoreBody)
         {
             Clear();
+
+            //Set the RawMessage before doing anything.
+            RawMessage = msgstr;
 
             string msgType = "";
             bool expectingHeader = true;
