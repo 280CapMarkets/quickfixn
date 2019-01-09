@@ -163,9 +163,9 @@ namespace QuickFix
     
             foreach (KeyValuePair<string, string> setting in settings)
             {
-                if (setting.Key.StartsWith(SessionSettings.APP_DATA_DICTIONARY, System.StringComparison.CurrentCultureIgnoreCase))
+                if (setting.Key.StartsWith(SessionSettings.APP_DATA_DICTIONARY, System.StringComparison.InvariantCultureIgnoreCase))
                 {
-                    if (setting.Key.Equals(SessionSettings.APP_DATA_DICTIONARY, System.StringComparison.CurrentCultureIgnoreCase))
+                    if (setting.Key.Equals(SessionSettings.APP_DATA_DICTIONARY, System.StringComparison.InvariantCultureIgnoreCase))
                     {
                         Fields.ApplVerID applVerId = Message.GetApplVerID(settings.GetString(SessionSettings.DEFAULT_APPLVERID));
                         DataDictionary.DataDictionary dd = createDataDictionary(sessionID, settings, SessionSettings.APP_DATA_DICTIONARY, sessionID.BeginString);
