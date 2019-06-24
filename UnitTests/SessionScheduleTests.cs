@@ -714,5 +714,42 @@ namespace UnitTests
             Util.UtcDateTimeSerializerTests.AssertHackyDateTimeEquality(d5expected, d5actual);
             Assert.AreEqual(DateTimeKind.Local, d5actual.Kind);
         }
+
+
+
+        [Test]
+        public void IsSessionTime_should_return_true_when_USE_DATE_TIME_is_true_and_date_and_time_in_range()
+        {
+            QuickFix.Dictionary settings = new QuickFix.Dictionary();
+            settings.SetString(QuickFix.SessionSettings.START_TIME, "06:00:00");
+            settings.SetString(QuickFix.SessionSettings.END_TIME, "17:30:00");
+            settings.SetString(QuickFix.SessionSettings.USE_DATE_TIME, "Y");
+            settings.SetString(QuickFix.SessionSettings.TIME_ZONE, "Eastern Standard Time");
+
+            settings.SetDay(QuickFix.SessionSettings.START_DAY, System.DayOfWeek.Monday);
+            settings.SetDay(QuickFix.SessionSettings.END_DAY, System.DayOfWeek.Friday);
+            QuickFix.SessionSchedule sched = new QuickFix.SessionSchedule(settings);
+
+            //a sunday
+            Assert.IsFalse(sched.IsSessionTime(new DateTime(2019, 06, 23, 10, 00, 00, DateTimeKind.Utc)));
+            Assert.IsFalse(sched.IsSessionTime(new DateTime(2019, 06, 23, 06, 00, 00, DateTimeKind.Utc)));
+
+
+            //a monday
+            Assert.IsTrue(sched.IsSessionTime(new DateTime(2019, 06, 24, 10, 00, 00, DateTimeKind.Utc)));
+            Assert.IsFalse(sched.IsSessionTime(new DateTime(2019, 06, 24, 06, 00, 00, DateTimeKind.Utc)));
+
+            //a tuesday
+            Assert.IsTrue(sched.IsSessionTime(new DateTime(2019, 06, 25, 10, 00, 00, DateTimeKind.Utc)));
+            Assert.IsFalse(sched.IsSessionTime(new DateTime(2019, 06, 25, 06, 00, 00, DateTimeKind.Utc)));
+
+            //a friday
+            Assert.IsTrue(sched.IsSessionTime(new DateTime(2019, 06, 28, 10, 00, 00, DateTimeKind.Utc)));
+            Assert.IsFalse(sched.IsSessionTime(new DateTime(2019, 06, 28, 06, 00, 00, DateTimeKind.Utc)));
+
+            //a saturday
+            Assert.IsFalse(sched.IsSessionTime(new DateTime(2019, 06, 29, 10, 00, 00, DateTimeKind.Utc)));
+            Assert.IsFalse(sched.IsSessionTime(new DateTime(2019, 06, 29, 06, 00, 00, DateTimeKind.Utc)));
+        }
     }
 }
