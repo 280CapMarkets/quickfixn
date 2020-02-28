@@ -4,6 +4,7 @@ using System.Threading;
 using System.IO;
 using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace QuickFix
 {
@@ -19,7 +20,7 @@ namespace QuickFix
 
         private Thread thread_ = null;
         private byte[] readBuffer_ = new byte[BUF_SIZE];
-        private Parser parser_;
+        private MessageReader _messageReader;
         protected Stream stream_;
         private Transport.SocketInitiator initiator_;
         private Session session_;
@@ -33,7 +34,7 @@ namespace QuickFix
             initiator_ = initiator;
             session_ = session;
             socketEndPoint_ = socketEndPoint;
-            parser_ = new Parser();
+            _messageReader = new MessageReader();
             session_ = session;
             socketSettings_ = socketSettings;
         }
@@ -74,26 +75,30 @@ namespace QuickFix
             return QuickFix.Transport.StreamFactory.CreateClientStream(socketEndPoint_, socketSettings_, session_.Log);
         }
 
-        public bool Read()
+        public async Task HandleSessionLifeCycle(CancellationToken cancellationToken)
+        {
+            while (cancellationToken.IsCancellationRequested)
+            {
+                session_?.Next();
+                await Task.Delay(TimeSpan.FromMilliseconds(10), cancellationToken);
+            }
+        }
+
+        public Task ParseMessages(CancellationToken cancellationToken)
+        {
+            return _messageReader.ReadMessages((msg) =>
+            {
+                session_?.Next(msg);
+            }, cancellationToken);
+        }
+
+        public async Task ReadData(CancellationToken cancellationToken)
         {
             try
             {
-                int bytesRead = ReadSome(readBuffer_, 1000);
-                if (bytesRead > 0)
-                    parser_.AddToStream(ref readBuffer_, bytesRead);
-                else if (null != session_)
-                {
-                    session_.Next();
-                }
-                else
-                {
-                    throw new QuickFIXException("Initiator timed out while reading socket");
-                }
-
-                ProcessStream();
-                return true;
+                await _messageReader.ReadStreamData(this.stream_, cancellationToken).ConfigureAwait(false);
             }
-            catch (System.ObjectDisposedException e)
+            catch (ObjectDisposedException e)
             {
                 // this exception means socket_ is already closed when poll() is called
                 if (isDisconnectRequested_ == false)
@@ -104,83 +109,13 @@ namespace QuickFix
                     else
                         Disconnect();
                 }
-                return false;                    
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 if (null != session_)
                     session_.Disconnect(e.ToString());
                 else
                     Disconnect();
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Keep a handle to the current outstanding read request (if any)
-        /// </summary>
-        private IAsyncResult currentReadRequest_;
-        /// <summary>
-        /// Reads data from the network into the specified buffer.
-        /// It will wait up to the specified number of milliseconds for data to arrive,
-        /// if no data has arrived after the specified number of milliseconds then the function returns 0
-        /// </summary>
-        /// <param name="buffer">The buffer.</param>
-        /// <param name="timeoutMilliseconds">The timeout milliseconds.</param>
-        /// <returns>The number of bytes read into the buffer</returns>
-        /// <exception cref="System.Net.Sockets.SocketException">On connection reset</exception>
-        protected int ReadSome(byte[] buffer, int timeoutMilliseconds)
-        {
-            // NOTE: THIS FUNCTION IS EXACTLY THE SAME AS THE ONE IN SocketReader.
-            // Any changes made here should also be performed there.
-            try
-            {
-                // Begin read if it is not already started
-                if (currentReadRequest_ == null)
-                    currentReadRequest_ = stream_.BeginRead(buffer, 0, buffer.Length, null, null);
-
-                // Wait for it to complete (given timeout)
-                currentReadRequest_.AsyncWaitHandle.WaitOne(timeoutMilliseconds);
-
-                if (currentReadRequest_.IsCompleted)
-                {
-                    // Make sure to set currentReadRequest_ to before retreiving result 
-                    // so a new read can be started next time even if an exception is thrown
-                    var request = currentReadRequest_;
-                    currentReadRequest_ = null;
-
-                    int bytesRead = stream_.EndRead(request);
-                    if (0 == bytesRead)
-                        throw new SocketException(System.Convert.ToInt32(SocketError.ConnectionReset));
-
-                    return bytesRead;
-                }
-                else
-                    return 0;
-            }
-            catch (System.IO.IOException ex) // Timeout
-            {
-                var inner = ex.InnerException as SocketException;
-                if (inner != null && inner.SocketErrorCode == SocketError.TimedOut)
-                {
-                    // Nothing read 
-                    return 0;
-                }
-                else if (inner != null)
-                {
-                    throw inner; //rethrow SocketException part (which we have exception logic for)
-                }
-                else
-                    throw; //rethrow original exception
-            }
-        }
-
-        private void ProcessStream()
-        {
-            string msg;
-            while (parser_.ReadFixMessage(out msg))
-            {
-                session_.Next(msg);
             }
         }
 

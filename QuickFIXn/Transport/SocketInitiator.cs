@@ -8,6 +8,7 @@ using System.Net;
 using System.Diagnostics;
 using System.Threading;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace QuickFix.Transport
 {
@@ -56,6 +57,7 @@ namespace QuickFix.Transport
             SocketInitiatorThread t = socketInitiatorThread as SocketInitiatorThread;
             if (t == null) return;
 
+            var cancellationTokenSource = new CancellationTokenSource();
             string exceptionEvent = null;
             try
             {
@@ -65,9 +67,12 @@ namespace QuickFix.Transport
                     t.Initiator.SetConnected(t.Session.SessionID);
                     t.Session.Log.OnEvent("Connection succeeded");
                     t.Session.Next();
-                    while (t.Read())
-                    {
-                    }
+
+                    var sessionTask = t.HandleSessionLifeCycle(cancellationTokenSource.Token);
+                    var readTask = t.ReadData(cancellationTokenSource.Token);
+                    var parsingTask = t.ParseMessages(cancellationTokenSource.Token);
+
+                    Task.WhenAll(sessionTask, readTask, parsingTask).Wait(cancellationTokenSource.Token);
 
                     if (t.Initiator.IsStopped)
                         t.Initiator.RemoveThread(t);
@@ -88,6 +93,11 @@ namespace QuickFix.Transport
                 catch (Exception ex)
                 {
                     exceptionEvent = $"Unexpected exception: {ex}";
+                }
+                finally
+                {
+                    cancellationTokenSource.Cancel(false);
+                    cancellationTokenSource?.Dispose();
                 }
 
                 if (exceptionEvent != null)
