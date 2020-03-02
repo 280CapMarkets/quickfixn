@@ -123,7 +123,7 @@ namespace QuickFix
 
         public bool Send(string data)
         {
-            byte[] rawData = CharEncoding.DefaultEncoding.GetBytes(data);
+            var rawData = CharEncoding.DefaultEncoding.GetBytes(data);
             stream_.Write(rawData, 0, rawData.Length);
             return true;
         }
@@ -131,8 +131,7 @@ namespace QuickFix
         public void Disconnect()
         {
             isDisconnectRequested_ = true;
-            if (stream_ != null)
-                stream_.Close();
+            stream_?.Close();
         }
 
         #endregion

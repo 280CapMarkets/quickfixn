@@ -75,7 +75,7 @@ namespace QuickFix
                     while (endOfMessagePosition.HasValue)
                     {
                         var msg = buffer.Slice(0, endOfMessagePosition.Value);
-                        receivedMessage(GetString(msg.First));
+                        receivedMessage(GetString(msg));
                         buffer = buffer.Slice(endOfMessagePosition.Value);
                         endOfMessagePosition = FindEndOfMessagePosition(buffer);
                     }
@@ -94,10 +94,11 @@ namespace QuickFix
             return result;
         }
 
-        private string GetString(ReadOnlyMemory<byte> memory)
+        private string GetString(ReadOnlySequence<byte> memory)
         {
-            var arraySegment = GetArray(memory);
-            return CharEncoding.DefaultEncoding.GetString(arraySegment.Array, arraySegment.Offset, arraySegment.Count);
+            //var arraySegment = GetArray(memory);
+            //return CharEncoding.DefaultEncoding.GetString(arraySegment.Array, arraySegment.Offset, arraySegment.Count);
+            return CharEncoding.DefaultEncoding.GetString(memory.ToArray());
         }
 
         private SequencePosition? FindEndOfMessagePosition(ReadOnlySequence<byte> buffer)

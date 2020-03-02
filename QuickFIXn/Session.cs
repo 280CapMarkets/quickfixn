@@ -45,7 +45,7 @@ namespace QuickFix
         {
             get
             {
-                DateTime? creationTime = this.state_.CreationTime;
+                var creationTime = this.state_.CreationTime;
                 return creationTime.HasValue == false
                     || this.schedule_.IsNewSession(creationTime.Value, DateTime.UtcNow);
             }
