@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using QuickFix;
 using QuickFix.Transport;
 
@@ -30,12 +31,12 @@ namespace SimpleAcceptor
             try
             {
                 SessionSettings settings = new SessionSettings(args[0]);
-                IApplication app = new SimpleAcceptorApp();
+                IApplication app = new SimpleAcceptor.SimpleAcceptorApp();
                 IMessageStoreFactory storeFactory = new FileStoreFactory(settings);
                 ILogFactory logFactory = new FileLogFactory(settings);
                 IAcceptor acceptor = new ThreadedSocketAcceptor(app, storeFactory, settings, logFactory);
 
-                acceptor.Start();
+                acceptor.Start(CancellationToken.None);
                 Console.WriteLine("press <enter> to quit");
                 Console.Read();
                 acceptor.Stop();

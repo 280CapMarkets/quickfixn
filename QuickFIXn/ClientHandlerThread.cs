@@ -70,7 +70,7 @@ namespace QuickFix
 
         public void Start()
         {
-            thread_ = new Thread(new ThreadStart(Run));
+            thread_ = new Thread(Run);
             thread_.Start();
         }
 

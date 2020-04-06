@@ -25,11 +25,11 @@ namespace AcceptanceTest
                 SessionSettings settings = new SessionSettings(args[0]);
                 IMessageStoreFactory storeFactory = new FileStoreFactory(settings);
                 ILogFactory logFactory = null;
-                if (settings.Get().Has("Verbose") && settings.Get().GetBool("Verbose"))
+                if (settings.GetDefaultSettings().Has("Verbose") && settings.GetDefaultSettings().GetBool("Verbose"))
                     logFactory = new FileLogFactory(settings);
                 acceptor = new ThreadedSocketAcceptor(testApp, storeFactory, settings, logFactory);
 
-                acceptor.Start();
+                acceptor.Start(CancellationToken.None);
                 while (true)
                 {
                     System.Threading.Thread.Sleep(1000);

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace TradeClient
 {
@@ -38,7 +39,7 @@ namespace TradeClient
                 // this is a developer-test kludge.  do not emulate.
                 application.MyInitiator = initiator;
 
-                initiator.Start();
+                initiator.Start(CancellationToken.None);
                 application.Run();
                 initiator.Stop();
             }

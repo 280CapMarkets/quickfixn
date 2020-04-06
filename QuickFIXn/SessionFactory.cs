@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading;
 
 namespace QuickFix
 {
@@ -7,11 +8,11 @@ namespace QuickFix
     /// </summary>
     public class SessionFactory
     {
-        protected IApplication application_;
-        protected IMessageStoreFactory messageStoreFactory_;
-        protected ILogFactory logFactory_;
-        protected IMessageFactory messageFactory_;
-        protected Dictionary<string,DataDictionary.DataDictionary> dictionariesByPath_ = new Dictionary<string,DataDictionary.DataDictionary>();
+        private readonly IApplication application_;
+        private readonly IMessageStoreFactory messageStoreFactory_;
+        private readonly ILogFactory logFactory_;
+        private readonly IMessageFactory messageFactory_;
+        private readonly Dictionary<string,DataDictionary.DataDictionary> dictionariesByPath_ = new Dictionary<string,DataDictionary.DataDictionary>();
 
         public SessionFactory(IApplication app, IMessageStoreFactory storeFactory)
             : this(app, storeFactory, null, null)
@@ -37,7 +38,7 @@ namespace QuickFix
             System.Console.WriteLine("[SessionFactory] " + messageFactory_.GetType().FullName);
         }
 
-        public Session Create(SessionID sessionID, QuickFix.Dictionary settings)
+        public Session Create(SessionID sessionID, QuickFix.Dictionary settings, CancellationToken cancellationToken)
         {
             string connectionType = settings.GetString(SessionSettings.CONNECTION_TYPE);
             if (!"acceptor".Equals(connectionType) && !"initiator".Equals(connectionType))
@@ -102,7 +103,8 @@ namespace QuickFix
                 heartBtInt,
                 logFactory_,
                 sessionMsgFactory,
-                senderDefaultApplVerId);
+                senderDefaultApplVerId,
+                cancellationToken);
 
             if (settings.Has(SessionSettings.SEND_REDUNDANT_RESENDREQUESTS))
                 session.SendRedundantResendRequests = settings.GetBool(SessionSettings.SEND_REDUNDANT_RESENDREQUESTS);
@@ -150,7 +152,7 @@ namespace QuickFix
             return session;
         }
 
-        protected DataDictionary.DataDictionary createDataDictionary(SessionID sessionID, QuickFix.Dictionary settings, string settingsKey, string beginString)
+        private DataDictionary.DataDictionary createDataDictionary(SessionID sessionID, QuickFix.Dictionary settings, string settingsKey, string beginString)
         {
             DataDictionary.DataDictionary dd;
             string path;
@@ -177,7 +179,7 @@ namespace QuickFix
             return ddCopy;
         }
 
-        protected void ProcessFixTDataDictionaries(SessionID sessionID, Dictionary settings, DataDictionaryProvider provider)
+        private void ProcessFixTDataDictionaries(SessionID sessionID, Dictionary settings, DataDictionaryProvider provider)
         {
             provider.AddTransportDataDictionary(sessionID.BeginString, createDataDictionary(sessionID, settings, SessionSettings.TRANSPORT_DATA_DICTIONARY, sessionID.BeginString));
     
@@ -205,7 +207,7 @@ namespace QuickFix
             }
         }
 
-        protected void ProcessFixDataDictionary(SessionID sessionID, Dictionary settings, DataDictionaryProvider provider)
+        private void ProcessFixDataDictionary(SessionID sessionID, Dictionary settings, DataDictionaryProvider provider)
         {
             DataDictionary.DataDictionary dataDictionary = createDataDictionary(sessionID, settings, SessionSettings.DATA_DICTIONARY, sessionID.BeginString);
             provider.AddTransportDataDictionary(sessionID.BeginString, dataDictionary);

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using QuickFix.StateManagement;
 
 namespace QuickFix
 {
@@ -7,12 +9,13 @@ namespace QuickFix
     /// <summary>
     /// Used by the session communications code. Not intended to be used by applications.
     /// </summary>
-    public class SessionState : IDisposable
+    public class SessionState : IDisposable, IConnectionState
     {
         #region Private Members
 
         private object sync_ = new object();
         private bool isEnabled_ = true;
+        private long _connectionState =  (long)ConnectionState.Disconnected;
         private bool receivedLogon_ = false;
         private bool receivedReset_ = false;
         private bool sentLogon_ = false;
@@ -51,7 +54,32 @@ namespace QuickFix
 
         #endregion
 
+
+        #region implementation of IConnectionState
+
+        public bool IsDisconnected => IsInState(ConnectionState.Disconnected);
+        public bool IsConnected => IsInState(ConnectionState.Connected);
+        public bool CanDisconnect => IsInState(ConnectionState.Connected | ConnectionState.Pending);
+        public void SetPending() => ConnectionState = ConnectionState.Pending;
+        public void SetDisconnected() => ConnectionState = ConnectionState.Disconnected;
+        public void SetConnected() => ConnectionState = ConnectionState.Connected;
+
+        #endregion
+
+
         #region Synchronized Properties
+
+        public ConnectionState ConnectionState
+        {
+            get => (ConnectionState)Interlocked.Read(ref _connectionState);
+            set => Interlocked.Exchange(ref _connectionState, (long) value);
+        }
+
+        private bool IsInState(ConnectionState state) => (ConnectionState & state) != 0;
+
+        //public bool IsPending => IsInState(ConnectionState.Pending);
+
+        
 
         public bool IsEnabled
         {

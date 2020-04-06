@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading;
 using NUnit.Framework;
 using QuickFix;
 
@@ -21,13 +22,13 @@ namespace UnitTests
             settings.SetString(SessionSettings.HEARTBTINT, "30");
             settings.SetString(SessionSettings.START_TIME, "12:00:00");
             settings.SetString(SessionSettings.END_TIME, "12:00:00");
-            Session session = factory.Create(sessionID, settings);
+            Session session = factory.Create(sessionID, settings, CancellationToken.None);
 
             //true by default
             Assert.That(session.PersistMessages);
 
             settings.SetBool(SessionSettings.PERSIST_MESSAGES, false);
-            session = factory.Create(sessionID, settings);
+            session = factory.Create(sessionID, settings, CancellationToken.None);
 
             Assert.That(!session.PersistMessages);
         }
@@ -46,7 +47,7 @@ namespace UnitTests
             settings.SetString(SessionSettings.END_TIME, "12:00:00");
             settings.SetString(SessionSettings.HEARTBTINT, "30");
 
-            Assert.DoesNotThrow(delegate { factory.Create(sessionID, settings); });
+            Assert.DoesNotThrow(delegate { factory.Create(sessionID, settings, CancellationToken.None); });
         }
 
         [Test]
@@ -66,7 +67,7 @@ namespace UnitTests
             settings.SetString(SessionSettings.END_DAY, "Mon");
             settings.SetString(SessionSettings.HEARTBTINT, "30");
 
-            Assert.DoesNotThrow(delegate { factory.Create(sessionID, settings); });
+            Assert.DoesNotThrow(delegate { factory.Create(sessionID, settings, CancellationToken.None); });
         }
 
         [Test]
@@ -91,7 +92,7 @@ namespace UnitTests
             settings.SetString(SessionSettings.SEND_LOGOUT_BEFORE_TIMEOUT_DISCONNECT, "Y");
             settings.SetString(SessionSettings.IGNORE_POSSDUP_RESEND_REQUESTS, "Y");
 
-            Session session = factory.Create(sessionID, settings);
+            Session session = factory.Create(sessionID, settings, CancellationToken.None);
 
             Assert.That(session.SendRedundantResendRequests);
             Assert.That(session.ResendSessionLevelRejects);
@@ -100,7 +101,7 @@ namespace UnitTests
             settings.SetString(SessionSettings.SEND_REDUNDANT_RESENDREQUESTS, "N");
             settings.SetString(SessionSettings.RESEND_SESSION_LEVEL_REJECTS, "N");
             settings.SetString(SessionSettings.MILLISECONDS_IN_TIMESTAMP, "N");
-            session = factory.Create(sessionID, settings);
+            session = factory.Create(sessionID, settings, CancellationToken.None);
 
             Assert.That(!session.SendRedundantResendRequests);
             Assert.That(!session.ResendSessionLevelRejects);
@@ -127,26 +128,26 @@ namespace UnitTests
             settings.SetString(SessionSettings.END_TIME, "12:00:00");
             settings.SetString(SessionSettings.TIMESTAMP_PRECISION, "Microsecond");
 
-            Session session = factory.Create(sessionID, settings);
+            Session session = factory.Create(sessionID, settings, CancellationToken.None);
 
             Assert.That(session.TimeStampPrecision == QuickFix.Fields.Converters.TimeStampPrecision.Microsecond );
 
             settings.SetString(SessionSettings.TIMESTAMP_PRECISION, "Micro");
 
-            session = factory.Create(sessionID, settings);
+            session = factory.Create(sessionID, settings, CancellationToken.None);
 
             Assert.That(session.TimeStampPrecision == QuickFix.Fields.Converters.TimeStampPrecision.Microsecond);
 
             settings.SetString(SessionSettings.TIMESTAMP_PRECISION, "Millisecond");
-            session = factory.Create(sessionID, settings);
+            session = factory.Create(sessionID, settings, CancellationToken.None);
             Assert.That(session.TimeStampPrecision == QuickFix.Fields.Converters.TimeStampPrecision.Millisecond);
 
             settings.SetString(SessionSettings.TIMESTAMP_PRECISION, "Milli");
-            session = factory.Create(sessionID, settings);
+            session = factory.Create(sessionID, settings, CancellationToken.None);
             Assert.That(session.TimeStampPrecision == QuickFix.Fields.Converters.TimeStampPrecision.Millisecond);
 
             settings.SetString(SessionSettings.TIMESTAMP_PRECISION, "Second");
-            session = factory.Create(sessionID, settings);
+            session = factory.Create(sessionID, settings, CancellationToken.None);
             Assert.That(session.TimeStampPrecision == QuickFix.Fields.Converters.TimeStampPrecision.Second);
         }
     }

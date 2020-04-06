@@ -34,7 +34,7 @@ namespace UnitTests
             config.SetString(QuickFix.SessionSettings.FILE_STORE_PATH, storeDirectory);
 
             settings = new QuickFix.SessionSettings();
-            settings.Set(sessionID, config);
+            settings.TrySet(sessionID, config);
             factory = new QuickFix.FileStoreFactory(settings);
 
             store = (QuickFix.FileStore)factory.Create(sessionID);

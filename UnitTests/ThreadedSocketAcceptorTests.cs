@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using NUnit.Framework;
 using QuickFix;
 
@@ -54,7 +55,7 @@ BeginString = FIX.4.4
         private static void StartStopAcceptor()
         {
             var acceptor = CreateAcceptor();
-            acceptor.Start();
+            acceptor.Start(CancellationToken.None);
             acceptor.Dispose();
         }
     }

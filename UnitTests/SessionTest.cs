@@ -190,10 +190,10 @@ namespace UnitTests
             config.SetString(QuickFix.SessionSettings.CONNECTION_TYPE, "initiator");
             config.SetString(QuickFix.SessionSettings.START_TIME, "00:00:00");
             config.SetString(QuickFix.SessionSettings.END_TIME, "00:00:00");
-            settings.Set(sessionID, config);
+            settings.TrySet(sessionID, config);
 
             session = new QuickFix.Session(application, new QuickFix.MemoryStoreFactory(), sessionID, 
-                new QuickFix.DataDictionaryProvider(),new QuickFix.SessionSchedule(config), 0, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah");
+                new QuickFix.DataDictionaryProvider(),new QuickFix.SessionSchedule(config), 0, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
             session.SetResponder(responder);
             session.CheckLatency = false;
 
@@ -201,7 +201,7 @@ namespace UnitTests
             int heartBeatInterval = 10;
 
             session2 = new QuickFix.Session(application, new QuickFix.MemoryStoreFactory(), new QuickFix.SessionID("FIX.4.2", "OTHER_SENDER", "OTHER_TARGET"),
-                new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(config), heartBeatInterval, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah");
+                new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(config), heartBeatInterval, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
             session2.SetResponder(responder);
             session2.CheckLatency = false;
 
@@ -916,7 +916,7 @@ namespace UnitTests
         {
             var mockApp = new MockApplicationExt();
             session = new QuickFix.Session(mockApp, new QuickFix.MemoryStoreFactory(), sessionID,
-                new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(config), 0, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah");
+                new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(config), 0, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
             session.SetResponder(responder);
             session.CheckLatency = false;
 

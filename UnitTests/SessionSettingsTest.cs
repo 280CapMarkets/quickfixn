@@ -67,9 +67,9 @@ namespace UnitTests
             SessionID session5 = new SessionID("FIX.4.0", "NYSE", "TW", "QUAL1");
             SessionID session6 = new SessionID("FIX.4.0", "NYSE", "TW", "QUAL2");
             
-            Assert.That(settings.Get().GetString( "Empty" ), Is.EqualTo("") );
+            Assert.That(settings.GetDefaultSettings().GetString( "Empty" ), Is.EqualTo("") );
             
-            Assert.That(settings.Get().GetLong( "Value" ), Is.EqualTo(4) );
+            Assert.That(settings.GetDefaultSettings().GetLong( "Value" ), Is.EqualTo(4) );
             Assert.That(settings.Get(session1).GetLong("Value"), Is.EqualTo(1));
             Assert.That(settings.Get(session2).GetLong("Value"), Is.EqualTo(2));
             Assert.That(settings.Get(session3).GetLong("Value"), Is.EqualTo(3));
@@ -78,7 +78,7 @@ namespace UnitTests
             Assert.That(settings.Get(session6).GetLong("Value"), Is.EqualTo(6));
 
             // case insensitivity
-            Assert.That(settings.Get().GetLong("value"), Is.EqualTo(4));
+            Assert.That(settings.GetDefaultSettings().GetLong("value"), Is.EqualTo(4));
             Assert.That(settings.Get(session1).GetLong("value"), Is.EqualTo(1));
             Assert.That(settings.Get(session2).GetLong("value"), Is.EqualTo(2));
             Assert.That(settings.Get(session3).GetLong("value"), Is.EqualTo(3));
@@ -86,7 +86,7 @@ namespace UnitTests
             Assert.That(settings.Get(session5).GetLong("value"), Is.EqualTo(5));
             Assert.That(settings.Get(session6).GetLong("value"), Is.EqualTo(6));
 
-            Assert.That(settings.Get().GetLong("VALUE"), Is.EqualTo(4));
+            Assert.That(settings.GetDefaultSettings().GetLong("VALUE"), Is.EqualTo(4));
             Assert.That(settings.Get(session1).GetLong("VALUE"), Is.EqualTo(1));
             Assert.That(settings.Get(session2).GetLong("VALUE"), Is.EqualTo(2));
             Assert.That(settings.Get(session3).GetLong("VALUE"), Is.EqualTo(3));
@@ -115,9 +115,9 @@ namespace UnitTests
             SessionID session5 = new SessionID("FIX.4.0", "NYSE", "TW", "QUAL1");
             SessionID session6 = new SessionID("FIX.4.0", "NYSE", "TW", "QUAL2");
 
-            Assert.That(settings.Get().GetString("Empty"), Is.EqualTo(""));
+            Assert.That(settings.GetDefaultSettings().GetString("Empty"), Is.EqualTo(""));
 
-            Assert.That(settings.Get().GetLong("Value"), Is.EqualTo(4));
+            Assert.That(settings.GetDefaultSettings().GetLong("Value"), Is.EqualTo(4));
             Assert.That(settings.Get(session1).GetLong("Value"), Is.EqualTo(1));
             Assert.That(settings.Get(session2).GetLong("Value"), Is.EqualTo(2));
             Assert.That(settings.Get(session3).GetLong("Value"), Is.EqualTo(3));
@@ -126,7 +126,7 @@ namespace UnitTests
             Assert.That(settings.Get(session6).GetLong("Value"), Is.EqualTo(6));
 
             // case insensitivity
-            Assert.That(settings.Get().GetLong("value"), Is.EqualTo(4));
+            Assert.That(settings.GetDefaultSettings().GetLong("value"), Is.EqualTo(4));
             Assert.That(settings.Get(session1).GetLong("value"), Is.EqualTo(1));
             Assert.That(settings.Get(session2).GetLong("value"), Is.EqualTo(2));
             Assert.That(settings.Get(session3).GetLong("value"), Is.EqualTo(3));
@@ -134,7 +134,7 @@ namespace UnitTests
             Assert.That(settings.Get(session5).GetLong("value"), Is.EqualTo(5));
             Assert.That(settings.Get(session6).GetLong("value"), Is.EqualTo(6));
 
-            Assert.That(settings.Get().GetLong("VALUE"), Is.EqualTo(4));
+            Assert.That(settings.GetDefaultSettings().GetLong("VALUE"), Is.EqualTo(4));
             Assert.That(settings.Get(session1).GetLong("VALUE"), Is.EqualTo(1));
             Assert.That(settings.Get(session2).GetLong("VALUE"), Is.EqualTo(2));
             Assert.That(settings.Get(session3).GetLong("VALUE"), Is.EqualTo(3));
@@ -177,7 +177,7 @@ namespace UnitTests
                     .ToString();
             SessionSettings settings = new SessionSettings(new System.IO.StringReader(configuration));
             
-            Assert.That(settings.Get().GetString("ConnectionType"), Is.EqualTo("initiator"));
+            Assert.That(settings.GetDefaultSettings().GetString("ConnectionType"), Is.EqualTo("initiator"));
 
             SessionID session = new SessionID("FIX.4.2", "ISLD", "TW");
             Assert.That(settings.Get(session).GetString("ConnectionType"), Is.EqualTo("initiator"));
@@ -197,19 +197,19 @@ namespace UnitTests
             
             // ConnectionType not set
             QuickFix.Dictionary dictionary = new QuickFix.Dictionary();
-            Assert.Throws<ConfigError>(delegate { settings.Set(sessionID, dictionary); });
+            Assert.Throws<ConfigError>(delegate { settings.TrySet(sessionID, dictionary); });
 
             // ConnectionType set to invalid value
             dictionary.SetString(SessionSettings.CONNECTION_TYPE, "badvalue");
-            Assert.Throws<ConfigError>(delegate { settings.Set(sessionID, dictionary); });
+            Assert.Throws<ConfigError>(delegate { settings.TrySet(sessionID, dictionary); });
 
             // ConnectionType set to valid value
             dictionary.SetString(SessionSettings.CONNECTION_TYPE, "initiator");
-            Assert.DoesNotThrow(delegate { settings.Set(sessionID, dictionary); });
+            Assert.DoesNotThrow(delegate { settings.TrySet(sessionID, dictionary); });
             
             // Invalid BeginString
             sessionID = new SessionID("FIX4.2", "SenderCompID", "TargetCompID");
-            Assert.Throws<ConfigError>(delegate { settings.Set(sessionID, dictionary); });
+            Assert.Throws<ConfigError>(delegate { settings.TrySet(sessionID, dictionary); });
         }
 
         [Test]
@@ -232,9 +232,9 @@ namespace UnitTests
                 .AppendLine("TARGETCOMPID=WT")
                 .AppendLine("VALUE=2")
                 .ToString();
-            SessionSettings settings = new SessionSettings(new System.IO.StringReader(configuration));
+            var settings = new SessionSettings(new System.IO.StringReader(configuration));
 
-            Assert.That(settings.ToString(), Is.EqualTo(configuration));
+            Assert.AreEqual(settings.GetSessions().Count, 2);
         }
 
         [Test]
@@ -314,7 +314,7 @@ SenderCompID=ISLD
 TargetCompID=TW";
             SessionSettings settings = new SessionSettings(new System.IO.StringReader(configuration));
 
-            Assert.That(settings.Get().GetString("ConnectionType"), Is.EqualTo("initiator"));
+            Assert.That(settings.GetDefaultSettings().GetString("ConnectionType"), Is.EqualTo("initiator"));
 
             SessionID session = new SessionID("FIX.4.2", "ISLD", "TW");
             Assert.That(settings.Get(session).GetString("ConnectionType"), Is.EqualTo("initiator"));

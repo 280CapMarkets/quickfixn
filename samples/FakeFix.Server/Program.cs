@@ -18,7 +18,7 @@ namespace FakeFix.Server
             using var subscription = componentFactory.CreateDiagnosticSubscription(new SenderDiagnosticObserver());
             using var app = componentFactory.CreateApp(cancellationTokenSource, CreateFakePartner1Message);
             using var server = componentFactory.CreateFixServer(app, @".\Config\partner1\server.cfg");
-            server.Start();
+            server.Start(cancellationTokenSource.Token);
             Console.WriteLine("Server started! Press Enter to Stop");
             Console.ReadLine();
             cancellationTokenSource.Cancel(false);

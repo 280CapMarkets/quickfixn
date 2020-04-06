@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.ConstrainedExecution;
 using System.Text;
+using System.Threading;
 using Acceptor;
 using QuickFix;
 
@@ -28,13 +29,13 @@ namespace Executor
             try
             {
                 SessionSettings settings = new SessionSettings(args[0]);
-                IApplication executorApp = new Executor();
+                IApplication executorApp = new ExecutorMessageCracker();
                 IMessageStoreFactory storeFactory = new FileStoreFactory(settings);
                 ILogFactory logFactory = new FileLogFactory(settings);
                 ThreadedSocketAcceptor acceptor = new ThreadedSocketAcceptor(executorApp, storeFactory, settings, logFactory);
                 HttpServer srv = new HttpServer(HttpServerPrefix, settings);
                 
-                acceptor.Start();
+                acceptor.Start(CancellationToken.None);
                 srv.Start();
                 
                 Console.WriteLine("View Executor status: "+HttpServerPrefix);

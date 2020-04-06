@@ -18,11 +18,12 @@ namespace FakeFix.Client
             using var subscription = componentFactory.CreateDiagnosticSubscription( new ReceiverDiagnosticObserver());
             using var app = componentFactory.CreateApp(cancellationTokenSource/*, CreateFakePartner1Message*/);
             using var client = componentFactory.CreateFixClient(app, @".\Config\partner1\client.cfg");
-            client.Start();
+            var rootTask = client.Start(cancellationTokenSource.Token);
             Console.WriteLine("Client started! Press Enter to Stop");
             Console.ReadLine();
             cancellationTokenSource.Cancel(false);
             await app.WhenStopped();
+            await rootTask;
         }
 
         /// <summary>

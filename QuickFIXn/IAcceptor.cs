@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace QuickFix
 {
@@ -12,7 +13,7 @@ namespace QuickFix
         /// <summary>
         /// Start accepting connections
         /// </summary>
-        void Start();
+        void Start(CancellationToken cancellationToken);
 
         /// <summary>
         /// Close exising connections and stop accepting new ones
@@ -49,7 +50,7 @@ namespace QuickFix
         /// <param name="sessionID">ID of session to be added</param>
         /// <param name="dict">session settings</param>
         /// <returns>>true if session added successfully, false if session already exists or is not an acceptor</returns>
-        bool AddSession(SessionID sessionID, QuickFix.Dictionary dict);
+        bool AddSession(SessionID sessionID, QuickFix.Dictionary dict, CancellationToken cancellationToken);
 
         /// <summary>
         /// Remove an existing session after acceptor has been started

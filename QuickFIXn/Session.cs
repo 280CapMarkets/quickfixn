@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using QuickFix.Fields;
 using QuickFix.Fields.Converters;
+using QuickFix.StateManagement;
+using QuickFix.Util;
 
 namespace QuickFix
 {
@@ -18,6 +21,7 @@ namespace QuickFix
         #region Private Members
 
         private static Dictionary<SessionID, Session> sessions_ = new Dictionary<SessionID, Session>();
+         
         private object sync_ = new object();
         private IResponder responder_ = null;
         private SessionSchedule schedule_;
@@ -27,9 +31,14 @@ namespace QuickFix
         private static readonly HashSet<string> AdminMsgTypes = new HashSet<string>() { "0", "A", "1", "2", "3", "4", "5" };
         private bool disposed_;
 
+        private readonly AwaitableCriticalSection _awaitableCriticalSection;
+        private readonly CancellationTokenSource _sessionCancellationTokenSource;
+
         #endregion
 
         #region Properties
+
+        public IConnectionState ConnectionState => state_;
 
         // state
         public IMessageStore MessageStore { get { return state_.MessageStore; } }
@@ -37,7 +46,7 @@ namespace QuickFix
         public bool IsInitiator { get { return state_.IsInitiator; } }
         public bool IsAcceptor { get { return !state_.IsInitiator; } }
         public bool IsEnabled { get { return state_.IsEnabled; } }
-        public bool IsSessionTime { get { return schedule_.IsSessionTime(System.DateTime.UtcNow); } }
+        public bool IsSessionTime => schedule_.IsSessionTime(DateTime.UtcNow);
         public bool IsLoggedOn { get { return ReceivedLogon && SentLogon; } }
         public bool SentLogon { get { return state_.SentLogon; } }
         public bool ReceivedLogon { get { return state_.ReceivedLogon; } }
@@ -50,7 +59,6 @@ namespace QuickFix
                     || this.schedule_.IsNewSession(creationTime.Value, DateTime.UtcNow);
             }
         }
-
 
         /// <summary>
         /// Session setting for heartbeat interval (in seconds)
@@ -241,10 +249,17 @@ namespace QuickFix
 
         #endregion
 
+        public AwaitableCriticalSection CriticalSection => _awaitableCriticalSection;
+        public CancellationToken SessionCancellationToken => _sessionCancellationTokenSource.Token;
+       
+
+
         public Session(
             IApplication app, IMessageStoreFactory storeFactory, SessionID sessID, DataDictionaryProvider dataDictProvider,
-            SessionSchedule sessionSchedule, int heartBtInt, ILogFactory logFactory, IMessageFactory msgFactory, string senderDefaultApplVerID)
+            SessionSchedule sessionSchedule, int heartBtInt, ILogFactory logFactory, IMessageFactory msgFactory, string senderDefaultApplVerID, CancellationToken cancellationToken)
         {
+            this._awaitableCriticalSection = new AwaitableCriticalSection();
+            _sessionCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             this.Application = app;
             this.SessionID = sessID;
             this.DataDictionaryProvider = new DataDictionaryProvider(dataDictProvider);
@@ -393,7 +408,7 @@ namespace QuickFix
         public void Logon()
         {
             state_.IsEnabled = true;
-            state_.LogoutReason = "";
+            state_.LogoutReason = string.Empty;
         }
 
         // TODO for v2 - rename, make internal
@@ -402,7 +417,7 @@ namespace QuickFix
         /// </summary>
         public void Logout()
         {
-            Logout("");
+            Logout(string.Empty);
         }
 
         // TODO for v2 - rename, make internal
@@ -450,6 +465,8 @@ namespace QuickFix
                     state_.Reset("ResetOnDisconnect");
                 state_.SetResendRange(0, 0);
             }
+            //TODO: should be rethink reset perform at the start of connection process
+            //_sessionCancellationTokenSource.Cancel(false);
         }
 
         /// <summary>
@@ -1341,22 +1358,22 @@ namespace QuickFix
         /// <returns></returns>
         private bool GenerateLogout(Message other, string text)
         {
-            Message logout = msgFactory_.Create(this.SessionID.BeginString, Fields.MsgType.LOGOUT);
-            InitializeHeader(logout);
-            if (text != null && text.Length > 0)
-                logout.SetField(new Fields.Text(text));
+            var logoutMessage = msgFactory_.Create(this.SessionID.BeginString, Fields.MsgType.LOGOUT);
+            InitializeHeader(logoutMessage);
+            if (!string.IsNullOrEmpty(text))
+                logoutMessage.SetField(new Fields.Text(text));
             if (other != null && this.EnableLastMsgSeqNumProcessed)
             {
                 try
                 {
-                    logout.Header.SetField(new Fields.LastMsgSeqNumProcessed(other.Header.GetInt(Tags.MsgSeqNum)));
+                    logoutMessage.Header.SetField(new Fields.LastMsgSeqNumProcessed(other.Header.GetInt(Tags.MsgSeqNum)));
                 }
                 catch (FieldNotFoundException)
                 {
                     this.Log.OnEvent("Error: No message sequence number: " + other);
                 }
             }
-            state_.SentLogout = SendRaw(logout, 0);
+            state_.SentLogout = SendRaw(logoutMessage, 0);
             return state_.SentLogout;
         }
 
@@ -1689,6 +1706,8 @@ namespace QuickFix
                 }
                 disposed_ = true;
             }
+            _awaitableCriticalSection.Dispose();
+            _sessionCancellationTokenSource.Dispose();
         }
 
         public bool Disposed

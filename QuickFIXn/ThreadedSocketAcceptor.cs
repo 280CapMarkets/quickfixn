@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Net;
 using System;
+using System.Threading;
 
 namespace QuickFix
 {
@@ -71,28 +72,7 @@ namespace QuickFix
         private object sync_ = new object();
 
         #region Constructors
-
-        /// <summary>
-        /// Create a ThreadedSocketAcceptor with a NullLogFactory and DefaultMessageFactory
-        /// </summary>
-        /// <param name="application"></param>
-        /// <param name="storeFactory"></param>
-        /// <param name="settings"></param>
-        public ThreadedSocketAcceptor(IApplication application, IMessageStoreFactory storeFactory, SessionSettings settings)
-            : this(application, storeFactory, settings, null, null)
-        { }
-
-        /// <summary>
-        /// Create a ThreadedSocketAcceptor with a DefaultMessageFactory
-        /// </summary>
-        /// <param name="application"></param>
-        /// <param name="storeFactory"></param>
-        /// <param name="settings"></param>
-        /// <param name="logFactory"></param>
-        public ThreadedSocketAcceptor(IApplication application, IMessageStoreFactory storeFactory, SessionSettings settings, ILogFactory logFactory)
-            : this(application, storeFactory, settings, logFactory, null)
-        { }
-
+        
         /// <summary>
         /// Create a ThreadedSocketAcceptor
         /// </summary>
@@ -105,29 +85,21 @@ namespace QuickFix
             IApplication application,
             IMessageStoreFactory storeFactory,
             SessionSettings settings,
-            ILogFactory logFactory,
-            IMessageFactory messageFactory)
+            ILogFactory logFactory = default,
+            IMessageFactory messageFactory = default)
         {
-            logFactory = logFactory ?? new NullLogFactory();
-            messageFactory = messageFactory ?? new DefaultMessageFactory();
-            SessionFactory sf = new SessionFactory(application, storeFactory, logFactory, messageFactory);
-
-            try
-            {
-                CreateSessions(settings, sf);
-            }
-            catch (System.Exception e)
-            {
-                throw new ConfigError(e.Message, e);
-            }
+            logFactory ??= new NullLogFactory();
+            messageFactory ??= new DefaultMessageFactory();
+            sessionFactory_ = new SessionFactory(application, storeFactory, logFactory, messageFactory);
+            settings_ = settings;
         }
 
         [Obsolete("Will be removed in a future release.")]
-        public ThreadedSocketAcceptor(SessionFactory sessionFactory, SessionSettings settings)
+        public ThreadedSocketAcceptor(SessionFactory sessionFactory, SessionSettings settings, CancellationToken cancellationToken)
         {
             try
             {
-                CreateSessions(settings, sessionFactory);
+                CreateSessions(settings, sessionFactory, cancellationToken);
             }
             catch (System.Exception e)
             {
@@ -139,14 +111,12 @@ namespace QuickFix
 
         #region Private Methods
 
-        private void CreateSessions(SessionSettings settings, SessionFactory sessionFactory)
+        private void CreateSessions(SessionSettings settings, SessionFactory sessionFactory, CancellationToken cancellationToken)
         {
-            sessionFactory_ = sessionFactory;
-            settings_ = settings;
             foreach (SessionID sessionID in settings.GetSessions())
             {
                 QuickFix.Dictionary dict = settings.Get(sessionID);
-                CreateSession(sessionID, dict);
+                CreateSession(sessionID, dict, cancellationToken);
             }
 
             if (0 == socketDescriptorForAddress_.Count)
@@ -191,7 +161,7 @@ namespace QuickFix
         /// <param name="sessionID">ID of new session</param>
         /// <param name="dict">config settings for new session</param>
         /// <returns>true if session added successfully, false if session already exists or is not an acceptor</returns>
-        private bool CreateSession(SessionID sessionID, Dictionary dict)
+        private bool CreateSession(SessionID sessionID, Dictionary dict, CancellationToken cancellationToken)
         {
             if (!sessions_.ContainsKey(sessionID))
             {
@@ -199,7 +169,7 @@ namespace QuickFix
                 if ("acceptor" == connectionType)
                 {
                     AcceptorSocketDescriptor descriptor = GetAcceptorSocketDescriptor(dict);
-                    Session session = sessionFactory_.Create(sessionID, dict);
+                    Session session = sessionFactory_.Create(sessionID, dict, cancellationToken);
                     descriptor.AcceptSession(session);
                     sessions_[sessionID] = session;
                     return true;
@@ -315,8 +285,19 @@ namespace QuickFix
 
         #region Acceptor Members
 
-        public void Start()
+        public void Start(CancellationToken cancellationToken)
         {
+            try
+            {
+                CreateSessions(settings_, sessionFactory_, cancellationToken);
+            }
+            catch (System.Exception e)
+            {
+                throw new ConfigError(e.Message, e);
+            }
+
+
+
             if (_disposed)
                 throw new ObjectDisposedException(GetType().Name);
 
@@ -384,20 +365,16 @@ namespace QuickFix
         /// </summary>
         /// <param name="sessionID">ID of new session</param>
         /// <param name="dict">config settings for new session</param>
+        /// <param name="cancellationToken"></param>
         /// <returns>true if session added successfully, false if session already exists or is not an acceptor</returns>
-        public bool AddSession(SessionID sessionID, Dictionary dict)
+        public bool AddSession(SessionID sessionID, Dictionary dict, CancellationToken cancellationToken)
         {
-            lock (settings_)
-                if (!settings_.Has(sessionID)) // session won't be in settings if ad-hoc creation after startup
-                    settings_.Set(sessionID, dict); // need to to this here to merge in default config settings
-                else
-                    return false; // session already exists
+            if (!settings_.TrySet(sessionID, dict)) return false; // session won't be in settings if ad-hoc creation after startup
 
-            if (CreateSession(sessionID, dict))
+            if (CreateSession(sessionID, dict, cancellationToken))
                 return true;
 
-            lock (settings_) // failed to create session, so remove from settings
-                settings_.Remove(sessionID);
+            if (!settings_.Remove(sessionID)) throw new ConfigError("Session can't be removed at runtime");
             return false;
         }
 

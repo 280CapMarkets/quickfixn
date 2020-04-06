@@ -61,7 +61,7 @@ namespace UnitTests
             config.SetString(QuickFix.SessionSettings.CONNECTION_TYPE, "initiator");
             config.SetString(QuickFix.SessionSettings.FILE_LOG_PATH, logDirectory);
 
-            settings.Set(sessionID, config);
+            settings.TrySet(sessionID, config);
 
             QuickFix.FileLogFactory factory = new QuickFix.FileLogFactory(settings);
             log = (QuickFix.FileLog)factory.Create(sessionID);
@@ -81,7 +81,7 @@ namespace UnitTests
             QuickFix.Dictionary config = new QuickFix.Dictionary();
             config.SetString(QuickFix.SessionSettings.CONNECTION_TYPE, "initiator");
             QuickFix.SessionSettings settings = new QuickFix.SessionSettings();
-            settings.Set(sessionID, config);
+            settings.TrySet(sessionID, config);
 
             QuickFix.FileLogFactory factory = new QuickFix.FileLogFactory(settings);
 

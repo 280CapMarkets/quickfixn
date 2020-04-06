@@ -77,6 +77,8 @@ namespace QuickFix
             // Any changes made here should also be made there.
             try
             {
+                if (!stream_.CanRead)
+                    return 0;
                 // Begin read if it is not already started
                 if (currentReadRequest_ == null)
                     currentReadRequest_ = stream_.BeginRead(buffer, 0, buffer.Length, null, null);

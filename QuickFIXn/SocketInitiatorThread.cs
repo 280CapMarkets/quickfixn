@@ -18,7 +18,8 @@ namespace QuickFix
 
         public const int BUF_SIZE = 512;
 
-        private Thread thread_ = null;
+        //private Thread thread_ = null;
+        //private Task _task;
         private byte[] readBuffer_ = new byte[BUF_SIZE];
         private MessageReader _messageReader;
         protected Stream stream_;
@@ -39,22 +40,10 @@ namespace QuickFix
             socketSettings_ = socketSettings;
         }
 
-        public void Start()
+        public Task Start()
         {
             isDisconnectRequested_ = false;
-            thread_ = new Thread(new ParameterizedThreadStart(Transport.SocketInitiator.SocketInitiatorThreadStart));
-            thread_.Start(this);
-        }
-
-        public void Join()
-        {
-            if (null == thread_)
-                return;
-            Disconnect();
-            // Make sure session's socket reader thread doesn't try to do a Join on itself!
-            if (Thread.CurrentThread.ManagedThreadId != thread_.ManagedThreadId)
-                thread_.Join(2000);
-            thread_ = null;
+            return Transport.SocketInitiator.SocketInitiatorThreadStart(this);
         }
 
         public void Connect()
@@ -82,6 +71,7 @@ namespace QuickFix
                 session_?.Next();
                 await Task.Delay(TimeSpan.FromMilliseconds(10), cancellationToken);
             }
+            cancellationToken.ThrowIfCancellationRequested();
         }
 
         public Task ParseMessages(CancellationToken cancellationToken)

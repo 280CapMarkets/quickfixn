@@ -2,6 +2,7 @@
 using QuickFix;
 using QuickFix.Fields;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace TradeClient
 {
@@ -95,7 +96,7 @@ namespace TradeClient
                         if (this.MyInitiator.IsStopped)
                         {
                             Console.WriteLine("Restarting initiator...");
-                            this.MyInitiator.Start();
+                            this.MyInitiator.Start(CancellationToken.None);
                         }
                         else
                             Console.WriteLine("Already started.");

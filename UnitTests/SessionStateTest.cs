@@ -144,7 +144,7 @@ namespace UnitTests
             config.SetString(SessionSettings.FILE_STORE_PATH, storeDirectory);
 
             SessionSettings settings = new SessionSettings();
-            settings.Set(sessionId, config);
+            settings.TrySet(sessionId, config);
             FileStoreFactory factory = new FileStoreFactory(settings);
 
             FileStore store = (FileStore)factory.Create(sessionId);

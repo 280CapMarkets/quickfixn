@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace QuickFix
 {
@@ -17,7 +17,7 @@ namespace QuickFix
         /// <summary>
         /// Starts a connection with a remote acceptor
         /// </summary>
-        void Start();
+        Task Start(CancellationToken cancellationToken);
 
         /// <summary>
         /// Logout existing session and close connection.  All open resources are released.
@@ -48,7 +48,7 @@ namespace QuickFix
         /// <param name="sessionID">ID of session to be added</param>
         /// <param name="dict">session settings</param>
         /// <returns>true if session added successfully, false if session already exists or is not an initiator</returns>
-        bool AddSession(SessionID sessionID, QuickFix.Dictionary dict);
+        bool AddSession(SessionID sessionID, QuickFix.Dictionary dict, CancellationToken cancellationToken);
 
         /// <summary>
         /// Remove an existing session after initiator has been started
@@ -56,7 +56,7 @@ namespace QuickFix
         /// <param name="sessionID">ID of session to be removed</param>
         /// <param name="terminateActiveSession">if true, force disconnection and removal of session even if it has an active connection</param>
         /// <returns>true if session removed or not already present; false if could not be removed due to an active connection</returns>
-        bool RemoveSession(SessionID sessionID, bool terminateActiveSession);
+        Task<bool> RemoveSession(SessionID sessionID, bool terminateActiveSession);
     }
 
     /// <summary>
