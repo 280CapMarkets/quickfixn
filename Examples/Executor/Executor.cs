@@ -5,6 +5,7 @@ using System.Text;
 
 using QuickFix;
 using QuickFix.Fields;
+using QuickFix.Session;
 
 namespace Executor
 {

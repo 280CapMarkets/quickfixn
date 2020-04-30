@@ -119,7 +119,7 @@ namespace QuickFix.Transport
             }
         }       
 
-        private IPEndPoint GetNextSocketEndPoint(Session session, QuickFix.Dictionary settings)
+        private IPEndPoint GetNextSocketEndPoint(Session.Session session, QuickFix.Dictionary settings)
         {
             if (!sessionToHostNum_.TryGetValue(session.SessionID, out var num))
                 num = 0;
@@ -198,7 +198,7 @@ namespace QuickFix.Transport
             shutdownRequested_ = true;
         }
 
-        protected override void DoConnect(Session session, Dictionary settings)
+        protected override void DoConnect(Session.Session session, Dictionary settings)
         {
             try
             {

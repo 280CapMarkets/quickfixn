@@ -17,7 +17,7 @@ namespace QuickFix
 
         private object sync_ = new object();
         private bool _disposed = false;
-        private readonly ConcurrentDictionary<SessionID, Session> _sessions = new ConcurrentDictionary<SessionID, Session>();
+        private readonly ConcurrentDictionary<SessionID, Session.Session> _sessions = new ConcurrentDictionary<SessionID, Session.Session>();
         private bool isStopped_ = true;
         private readonly SessionFactory _sessionFactory = null;
 
@@ -213,7 +213,7 @@ namespace QuickFix
         /// </summary>
         /// <param name="session"></param>
         /// <param name="settings"></param>
-        protected abstract void DoConnect(Session session, QuickFix.Dictionary settings);
+        protected abstract void DoConnect(Session.Session session, QuickFix.Dictionary settings);
 
         #endregion
 

@@ -6,7 +6,7 @@ using QuickFix.Fields.Converters;
 using QuickFix.StateManagement;
 using QuickFix.Util;
 
-namespace QuickFix
+namespace QuickFix.Session
 {
     /// <summary>
     /// The Session is the primary FIX abstraction for message communication. 

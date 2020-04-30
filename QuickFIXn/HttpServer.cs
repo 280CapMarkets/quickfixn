@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Web;
 using QuickFix;
+using QuickFix.Session;
 
 namespace Acceptor
 {

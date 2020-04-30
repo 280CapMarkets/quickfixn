@@ -2,6 +2,7 @@
 using System.Threading;
 using NUnit.Framework;
 using QuickFix;
+using QuickFix.Session;
 
 namespace UnitTests
 {

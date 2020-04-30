@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using System.Threading;
+using QuickFix.Session;
 
 namespace UnitTests
 {
@@ -170,8 +171,8 @@ namespace UnitTests
         QuickFix.SessionID sessionID = null;
         QuickFix.SessionSettings settings = null;
         MockApplication application = null;
-        QuickFix.Session session = null;
-        QuickFix.Session session2 = null;
+        Session session = null;
+        Session session2 = null;
         QuickFix.Dictionary config = null;
         int seqNum = 1;
         Regex msRegex = new Regex(@"\.[\d]{1,3}$");
@@ -192,7 +193,7 @@ namespace UnitTests
             config.SetString(QuickFix.SessionSettings.END_TIME, "00:00:00");
             settings.TrySet(sessionID, config);
 
-            session = new QuickFix.Session(application, new QuickFix.MemoryStoreFactory(), sessionID, 
+            session = new Session(application, new QuickFix.MemoryStoreFactory(), sessionID, 
                 new QuickFix.DataDictionaryProvider(),new QuickFix.SessionSchedule(config), 0, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
             session.SetResponder(responder);
             session.CheckLatency = false;
@@ -200,7 +201,7 @@ namespace UnitTests
             // must be set for an initiator
             int heartBeatInterval = 10;
 
-            session2 = new QuickFix.Session(application, new QuickFix.MemoryStoreFactory(), new QuickFix.SessionID("FIX.4.2", "OTHER_SENDER", "OTHER_TARGET"),
+            session2 = new Session(application, new QuickFix.MemoryStoreFactory(), new QuickFix.SessionID("FIX.4.2", "OTHER_SENDER", "OTHER_TARGET"),
                 new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(config), heartBeatInterval, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
             session2.SetResponder(responder);
             session2.CheckLatency = false;
@@ -784,8 +785,8 @@ namespace UnitTests
             QuickFix.SessionID invalidSessionID = new QuickFix.SessionID("FIX.4.2", "NOT_SENDER", "NOT_TARGET");
             QuickFix.SessionID validSessionID = new QuickFix.SessionID("FIX.4.2", "SENDER", "TARGET");
 
-            Assert.That(QuickFix.Session.DoesSessionExist(invalidSessionID), Is.EqualTo(false));
-            Assert.That(QuickFix.Session.DoesSessionExist(validSessionID), Is.EqualTo(true));            
+            Assert.That(Session.DoesSessionExist(invalidSessionID), Is.EqualTo(false));
+            Assert.That(Session.DoesSessionExist(validSessionID), Is.EqualTo(true));            
         }
 
         [Test]
@@ -915,7 +916,7 @@ namespace UnitTests
         public void TestApplicationExtension()
         {
             var mockApp = new MockApplicationExt();
-            session = new QuickFix.Session(mockApp, new QuickFix.MemoryStoreFactory(), sessionID,
+            session = new Session(mockApp, new QuickFix.MemoryStoreFactory(), sessionID,
                 new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(config), 0, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
             session.SetResponder(responder);
             session.CheckLatency = false;

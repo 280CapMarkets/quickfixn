@@ -3,6 +3,7 @@ using QuickFix;
 using QuickFix.Fields;
 using System.Collections.Generic;
 using System.Threading;
+using QuickFix.Session;
 
 namespace TradeClient
 {

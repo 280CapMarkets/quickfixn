@@ -13,7 +13,7 @@ namespace QuickFix
         public const int BUF_SIZE = 4096;
         byte[] readBuffer_ = new byte[BUF_SIZE];
         private Parser parser_ = new Parser();
-        private Session qfSession_; //will be null when initialized
+        private Session.Session qfSession_; //will be null when initialized
         private Stream stream_;     //will be null when initialized
         private TcpClient tcpClient_;
         private ClientHandlerThread responder_;
@@ -131,7 +131,7 @@ namespace QuickFix
             {
                 if (null == qfSession_)
                 {
-                    qfSession_ = Session.LookupSession(Message.GetReverseSessionID(msg));
+                    qfSession_ = Session.Session.LookupSession(Message.GetReverseSessionID(msg));
                     if (null == qfSession_)
                     {
                         this.Log("ERROR: Disconnecting; received message for unknown session: " + msg);
@@ -233,12 +233,12 @@ namespace QuickFix
         }
 
         [Obsolete("This should be made private/protected")]
-        public void HandleException(Session quickFixSession, System.Exception cause, TcpClient client)
+        public void HandleException(Session.Session quickFixSession, System.Exception cause, TcpClient client)
         {
             HandleExceptionInternal(quickFixSession, cause);
         }
 
-        private void HandleExceptionInternal(Session quickFixSession, System.Exception cause)
+        private void HandleExceptionInternal(Session.Session quickFixSession, System.Exception cause)
         {
             bool disconnectNeeded = true;
             string reason = cause.Message;

@@ -32,7 +32,7 @@ namespace QuickFix
 
             private ThreadedSocketReactor socketReactor_;
             private IPEndPoint socketEndPoint_;
-            private Dictionary<SessionID, Session> acceptedSessions_ = new Dictionary<SessionID, Session>();
+            private Dictionary<SessionID, Session.Session> acceptedSessions_ = new Dictionary<SessionID, Session.Session>();
 
             #endregion
             
@@ -42,7 +42,7 @@ namespace QuickFix
                 socketReactor_ = new ThreadedSocketReactor(socketEndPoint_, socketSettings, sessionDict);
             }
 
-            public void AcceptSession(Session session)
+            public void AcceptSession(Session.Session session)
             {
                 acceptedSessions_[session.SessionID] = session;
             }
@@ -57,13 +57,13 @@ namespace QuickFix
                 return acceptedSessions_.Remove(sessionID);
             }
 
-            public Dictionary<SessionID, Session> GetAcceptedSessions()
+            public Dictionary<SessionID, Session.Session> GetAcceptedSessions()
             {
-                return new Dictionary<SessionID, Session>(acceptedSessions_);
+                return new Dictionary<SessionID, Session.Session>(acceptedSessions_);
             }
         }
 
-        private Dictionary<SessionID, Session> sessions_ = new Dictionary<SessionID, Session>();
+        private Dictionary<SessionID, Session.Session> sessions_ = new Dictionary<SessionID, Session.Session>();
         private SessionSettings settings_;
         private Dictionary<IPEndPoint, AcceptorSocketDescriptor> socketDescriptorForAddress_ = new Dictionary<IPEndPoint, AcceptorSocketDescriptor>();
         private SessionFactory sessionFactory_;
@@ -169,7 +169,7 @@ namespace QuickFix
                 if ("acceptor" == connectionType)
                 {
                     AcceptorSocketDescriptor descriptor = GetAcceptorSocketDescriptor(dict);
-                    Session session = sessionFactory_.Create(sessionID, dict, cancellationToken);
+                    Session.Session session = sessionFactory_.Create(sessionID, dict, cancellationToken);
                     descriptor.AcceptSession(session);
                     sessions_[sessionID] = session;
                     return true;
@@ -205,7 +205,7 @@ namespace QuickFix
 
         private void LogoutAllSessions(bool force)
         {
-            foreach (Session session in sessions_.Values)
+            foreach (Session.Session session in sessions_.Values)
             {
                 try
                 {
@@ -220,7 +220,7 @@ namespace QuickFix
 
             if (force && IsLoggedOn)
             {
-                foreach (Session session in sessions_.Values)
+                foreach (Session.Session session in sessions_.Values)
                 {
                     try
                     {
@@ -387,7 +387,7 @@ namespace QuickFix
         /// <returns>true if session removed or not already present; false if could not be removed due to an active connection</returns>
         public bool RemoveSession(SessionID sessionID, bool terminateActiveSession)
         {
-            Session session = null;
+            Session.Session session = null;
             if (sessions_.TryGetValue(sessionID, out session))
             {
                 if (session.IsLoggedOn && !terminateActiveSession)

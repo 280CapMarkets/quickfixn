@@ -13,7 +13,7 @@ namespace QuickFix
     /// </summary>
     public class SocketInitiatorThread : IResponder
     {
-        public Session Session { get { return session_; } }
+        public Session.Session Session { get { return session_; } }
         public Transport.SocketInitiator Initiator { get { return initiator_; } }
 
         public const int BUF_SIZE = 512;
@@ -24,12 +24,12 @@ namespace QuickFix
         private MessageReader _messageReader;
         protected Stream stream_;
         private Transport.SocketInitiator initiator_;
-        private Session session_;
+        private Session.Session session_;
         private IPEndPoint socketEndPoint_;
         protected SocketSettings socketSettings_;
         private bool isDisconnectRequested_ = false;
 
-        public SocketInitiatorThread(Transport.SocketInitiator initiator, Session session, IPEndPoint socketEndPoint, SocketSettings socketSettings)
+        public SocketInitiatorThread(Transport.SocketInitiator initiator, Session.Session session, IPEndPoint socketEndPoint, SocketSettings socketSettings)
         {
             isDisconnectRequested_ = false;
             initiator_ = initiator;

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FakeFix.Common.Interfaces;
 using QuickFix;
+using QuickFix.Session;
 
 namespace FakeFix.Common
 {

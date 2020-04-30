@@ -38,7 +38,7 @@ namespace QuickFix
             System.Console.WriteLine("[SessionFactory] " + messageFactory_.GetType().FullName);
         }
 
-        public Session Create(SessionID sessionID, QuickFix.Dictionary settings, CancellationToken cancellationToken)
+        public Session.Session Create(SessionID sessionID, QuickFix.Dictionary settings, CancellationToken cancellationToken)
         {
             string connectionType = settings.GetString(SessionSettings.CONNECTION_TYPE);
             if (!"acceptor".Equals(connectionType) && !"initiator".Equals(connectionType))
@@ -94,7 +94,7 @@ namespace QuickFix
             if(defaultApplVerID != null)
                 senderDefaultApplVerId = defaultApplVerID.Obj;
 
-            Session session = new Session(
+            Session.Session session = new Session.Session(
                 application_,
                 messageStoreFactory_,
                 sessionID,
