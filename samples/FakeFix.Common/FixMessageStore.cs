@@ -8,6 +8,13 @@ namespace FakeFix.Common
     {
         private int _nextSenderMsgSeqNum;
         private int _nextTargetMsgSeqNum;
+
+        public DateTime? CreationTime { get; private set; }
+
+        public FixMessageStore()
+        {
+            CreationTime = DateTime.Now;
+        }
         public void Dispose() { }
 
         public void Get(int startSeqNum, int endSeqNum, List<string> messages){}
@@ -28,10 +35,14 @@ namespace FakeFix.Common
 
         public DateTime GetCreationTime() => CreationTime ?? DateTime.UtcNow;
 
-        public void Reset() => _nextSenderMsgSeqNum = _nextTargetMsgSeqNum = 1;
+        public void Reset()
+        {
+            CreationTime = DateTime.Now;
+            _nextSenderMsgSeqNum = _nextTargetMsgSeqNum = 1;
+        } 
 
         public void Refresh() { }
 
-        public DateTime? CreationTime { get; set; }
+        
     }
 }

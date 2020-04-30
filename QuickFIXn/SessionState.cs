@@ -49,8 +49,7 @@ namespace QuickFix
         public bool ShouldSendLogon
         { get { return IsInitiator && !SentLogon; } }
 
-        public ILog Log
-        { get { return log_; } }
+        public ILog Log => log_;
 
         #endregion
 
@@ -418,13 +417,7 @@ namespace QuickFix
             lock (sync_) { this.MessageStore.IncrNextTargetMsgSeqNum(); }
         }
 
-        public System.DateTime? CreationTime
-        {
-            get
-            {
-                lock (sync_) { return this.MessageStore.CreationTime; }
-            }
-        }
+        public System.DateTime? CreationTime => MessageStore.CreationTime;
 
         [Obsolete("Use Reset(reason) instead.")]
         public void Reset()

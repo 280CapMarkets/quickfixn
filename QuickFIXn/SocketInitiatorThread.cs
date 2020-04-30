@@ -69,6 +69,7 @@ namespace QuickFix
             while (cancellationToken.IsCancellationRequested)
             {
                 session_?.Next();
+                //TODO: should be replaced by timer it will be much efficient
                 await Task.Delay(TimeSpan.FromMilliseconds(10), cancellationToken);
             }
             cancellationToken.ThrowIfCancellationRequested();

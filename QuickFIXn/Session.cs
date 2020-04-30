@@ -55,7 +55,7 @@ namespace QuickFix
             get
             {
                 var creationTime = this.state_.CreationTime;
-                return creationTime.HasValue == false
+                return !creationTime.HasValue
                     || this.schedule_.IsNewSession(creationTime.Value, DateTime.UtcNow);
             }
         }
@@ -475,79 +475,83 @@ namespace QuickFix
         /// </summary>
         public void Next()
         {
-            if (!HasResponder)
-                return;
-
-            if (!IsSessionTime)
+            //session is a root object that heavy use by thread so should be sync just session and mesages threads
+            using (_awaitableCriticalSection.EnterAsync())
             {
-                if(IsInitiator==false)
-                    Reset("Out of SessionTime (Session.Next())", "Message received outside of session time");
-                else
-                    Reset("Out of SessionTime (Session.Next())");
-                return;
-            }
-
-            if (IsNewSession)
-                state_.Reset("New session (detected in Next())");
-
-            if (!IsEnabled)
-            {
-                if (!IsLoggedOn)
+                if (!HasResponder)
                     return;
 
-                if (!state_.SentLogout)
+                if (!IsSessionTime)
                 {
-                    this.Log.OnEvent("Initiated logout request");
-                    GenerateLogout(state_.LogoutReason);
-                }
-            }
-
-            if (!state_.ReceivedLogon)
-            {
-                if (state_.ShouldSendLogon && IsTimeToGenerateLogon())
-                {
-                    if (GenerateLogon())
-                        this.Log.OnEvent("Initiated logon request");
+                    if (IsInitiator == false)
+                        Reset("Out of SessionTime (Session.Next())", "Message received outside of session time");
                     else
-                        this.Log.OnEvent("Error during logon request initiation");
-
+                        Reset("Out of SessionTime (Session.Next())");
+                    return;
                 }
-                else if (state_.SentLogon && state_.LogonTimedOut())
+
+                if (IsNewSession)
+                    state_.Reset("New session (detected in Next())");
+
+                if (!IsEnabled)
                 {
-                    Disconnect("Timed out waiting for logon response");
+                    if (!IsLoggedOn)
+                        return;
+
+                    if (!state_.SentLogout)
+                    {
+                        this.Log.OnEvent("Initiated logout request");
+                        GenerateLogout(state_.LogoutReason);
+                    }
                 }
-                return;
-            }
 
-            if (0 == state_.HeartBtInt)
-                return;
-
-
-            if (state_.LogoutTimedOut())
-                Disconnect("Timed out waiting for logout response");
-
-
-            if (state_.WithinHeartbeat())
-                return;
-
-            if (state_.TimedOut())
-            {
-                if (this.SendLogoutBeforeTimeoutDisconnect)
-                    GenerateLogout();
-                Disconnect("Timed out waiting for heartbeat");
-            }
-            else
-            {
-                if (state_.NeedTestRequest())
+                if (!state_.ReceivedLogon)
                 {
+                    if (state_.ShouldSendLogon && IsTimeToGenerateLogon())
+                    {
+                        if (GenerateLogon())
+                            this.Log.OnEvent("Initiated logon request");
+                        else
+                            this.Log.OnEvent("Error during logon request initiation");
 
-                    GenerateTestRequest("TEST");
-                    state_.TestRequestCounter += 1;
-                    this.Log.OnEvent("Sent test request TEST");
+                    }
+                    else if (state_.SentLogon && state_.LogonTimedOut())
+                    {
+                        Disconnect("Timed out waiting for logon response");
+                    }
+                    return;
                 }
-                else if (state_.NeedHeartbeat())
+
+                if (0 == state_.HeartBtInt)
+                    return;
+
+
+                if (state_.LogoutTimedOut())
+                    Disconnect("Timed out waiting for logout response");
+
+
+                if (state_.WithinHeartbeat())
+                    return;
+
+                if (state_.TimedOut())
                 {
-                    GenerateHeartbeat();
+                    if (this.SendLogoutBeforeTimeoutDisconnect)
+                        GenerateLogout();
+                    Disconnect("Timed out waiting for heartbeat");
+                }
+                else
+                {
+                    if (state_.NeedTestRequest())
+                    {
+
+                        GenerateTestRequest("TEST");
+                        state_.TestRequestCounter += 1;
+                        this.Log.OnEvent("Sent test request TEST");
+                    }
+                    else if (state_.NeedHeartbeat())
+                    {
+                        GenerateHeartbeat();
+                    }
                 }
             }
         }
@@ -558,8 +562,12 @@ namespace QuickFix
         /// <param name="msgStr"></param>
         public void Next(string msgStr)
         {
-            NextMessage(msgStr);
-            NextQueued();
+            //session is a root object that heavy use by thread so should be sync just session and mesages threads
+            using (_awaitableCriticalSection.EnterAsync())
+            {
+                NextMessage(msgStr);
+                NextQueued();
+            }
         }
 
         /// <summary>
@@ -718,8 +726,11 @@ namespace QuickFix
                 GenerateLogout(e.Message);
                 Disconnect(e.ToString());
             }
+            
+            //we already started dedicated task for client session service, don't need to do this here.
+            //TODO: dedicated task should be started for server
+            //Next(); 
 
-            Next();
         }
 
         protected void NextLogon(Message logon)
@@ -1040,11 +1051,10 @@ namespace QuickFix
 
         public void SetResponder(IResponder responder)
         {
-            if (!IsSessionTime)
-                Reset("Out of SessionTime (Session.SetResponder)");
-
-            lock (sync_)
+            using (_awaitableCriticalSection.EnterAsync())
             {
+                if (!IsSessionTime)
+                    Reset("Out of SessionTime (Session.SetResponder)", null);
                 responder_ = responder;
             }
         }
@@ -1054,19 +1064,14 @@ namespace QuickFix
             state_.Refresh();
         }
 
-        [Obsolete("Use Reset(reason) instead.")]
-        public void Reset()
-        {
-            this.Reset("(unspecified reason)");
-        }
-
         /// <summary>
         /// Send a logout, disconnect, and reset session state
         /// </summary>
         /// <param name="loggedReason">reason for the reset (for the log)</param>
         public void Reset(string loggedReason)
         {
-            Reset(loggedReason, null);
+            using(_awaitableCriticalSection.EnterAsync())
+                Reset(loggedReason, null);
         }
 
         /// <summary>
@@ -1074,7 +1079,7 @@ namespace QuickFix
         /// </summary>
         /// <param name="loggedReason">reason for the reset (for the log)</param>
         /// <param name="logoutMessage">message to put in the Logout message's Text field (ignored if null/empty string)</param>
-        public void Reset(string loggedReason, string logoutMessage)
+        private void Reset(string loggedReason, string logoutMessage)
         {
             if(this.IsLoggedOn)
                 GenerateLogout(logoutMessage);
