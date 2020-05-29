@@ -1,8 +1,10 @@
 ﻿using System.Net.Sockets;
 using System.IO;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using QuickFix.Session;
 
 namespace QuickFix
 {
@@ -19,6 +21,7 @@ namespace QuickFix
         private Stream stream_;     //will be null when initialized
         private TcpClient tcpClient_;
         private ClientHandlerThread responder_;
+        private readonly AcceptorSocketDescriptor acceptorDescriptor_;
 
         /// <summary>
         /// Keep a handle to the current outstanding read request (if any)
@@ -32,9 +35,20 @@ namespace QuickFix
         }
 
         public SocketReader(TcpClient tcpClient, SocketSettings settings, ClientHandlerThread responder)
+            : this(tcpClient, settings, responder, null)
+        {
+            
+        }
+
+        internal SocketReader(
+            TcpClient tcpClient,
+            SocketSettings settings,
+            ClientHandlerThread responder,
+            AcceptorSocketDescriptor acceptorDescriptor)
         {
             tcpClient_ = tcpClient;
             responder_ = responder;
+            acceptorDescriptor_ = acceptorDescriptor;
             stream_ = Transport.StreamFactory.CreateServerStream(tcpClient, settings, responder.GetLog());
         }
 
@@ -45,7 +59,7 @@ namespace QuickFix
             {
                 var bytesRead = ReadSome(readBuffer_, 1000);
                 if (bytesRead > 0)
-                    parser_.AddToStream(ref readBuffer_, bytesRead);
+                    parser_.AddToStream(readBuffer_, bytesRead);
                 else if (null != qfSession_)
                 {
                     await qfSession_.Next(cancellationToken);
@@ -140,9 +154,18 @@ namespace QuickFix
                         DisconnectClient();
                         return;
                     }
-
-                    if (!(await HandleNewSession(msg, cancellationToken)))
+                    else if(IsAssumedSession(qfSession_.SessionID))
+                    {
+                        this.Log("ERROR: Disconnecting; received message for unknown session: " + msg);
+                        qfSession_ = null;
+                        DisconnectClient();
                         return;
+                    }
+                    else
+                    {
+                        if (!(await HandleNewSession(msg, cancellationToken)))
+                            return;
+                    }
                 }
 
                 try
@@ -235,6 +258,12 @@ namespace QuickFix
         public void HandleException(Session.Session quickFixSession, System.Exception cause, TcpClient client)
         {
             HandleExceptionInternal(quickFixSession, cause);
+        }
+
+        private bool IsAssumedSession(SessionID sessionID)
+        {
+            return acceptorDescriptor_ != null 
+                   && !acceptorDescriptor_.GetAcceptedSessions().Any(kv => kv.Key.Equals(sessionID));
         }
 
         private void HandleExceptionInternal(Session.Session quickFixSession, System.Exception cause)

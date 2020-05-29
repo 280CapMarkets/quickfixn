@@ -10,6 +10,19 @@ What's New
 
 ### NEXT VERSION:
 * (patch) #505 - Fix ObjectDisposedException when SocketInitiator is stopped before connection attempt fails (musashibg)
+* (patch) #571 - StreamFactory fix: unexpected null from GetProxy (mkoca & mcmillab)
+* (patch) #547 - Implement Refresh() method in FileStore (roederja2)
+* (minor) #570 - change Parser.AddToStream() interface to not use 'ref' (roederja2)
+* (patch) #526 - Do not ignore MsgSeqNum on ResendRequest when no persistence (ledusskapis)
+* (patch) #430 - Support config AllowUnknownMsgFields (peto268/gbirchmeier)
+* (patch) #349 - Improvement to repeating-group error detection when delimiter is missing (gbirchmeier)
+* (minor) #561 - Fix nanosecond config throw (dckorben)
+* (minor) #512 - Support config SocketSendTimeout/SocketReceiveTimeout to prevent SSL socket timeouts (allysutherland)
+* (patch) #383/#582 - Fix debug logfile name clash (chizz5056/gbirchmeier)
+* (patch) #410/#583 - SocketAcceptPort now fully-obeyed (mvdtom)
+* (minor) #585/#323 - Add Message.ToXML() (baffles/gbirchmeier)
+* (patch) #591 - Nanosecond DateTime reader bugfix (gbirchmeier)
+* (patch) #592/#601 - better detection of malformed DD elements (gbirchmeier/roederja2)
 
 ### v1.9.0:
 * (minor) #469 - Add support for NET Standard 2.0 (jhickson)
