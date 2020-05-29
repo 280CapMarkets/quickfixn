@@ -260,7 +260,8 @@ namespace Acceptor
                     foreach (SessionID session in _sessionSettings.GetSessions())
                     {
                         Session sessionDetails = Session.LookupSession(session);
-                        sessionDetails.Reset("Reset from WebInterface");
+                        //TODO: nmandzyk should be fixed
+                        sessionDetails.Reset("Reset from WebInterface", CancellationToken.None).GetAwaiter().GetResult();
                     }
                 }
             }
@@ -296,7 +297,8 @@ namespace Acceptor
                 if (Convert.ToInt16(request.QueryString["confirm"])!=0)
                 {
                     confirm = true;
-                    sessionDetails.Reset("Reset from WebInterface");
+                    //TODO: nmandzyk should be corrected
+                    sessionDetails.Reset("Reset from WebInterface", CancellationToken.None).GetAwaiter().GetResult();
                     url = RemoveQueryStringByKey(urlOriginalString, "confirm");
                 }
             }
@@ -343,14 +345,17 @@ namespace Acceptor
             foreach (SessionID session in _sessionSettings.GetSessions())
             {
                 Session sessionDetails = Session.LookupSession(session);
+                //TODO: nmandzyk should be use correct ct
+                var sDetails = sessionDetails.GetDetails(CancellationToken.None).GetAwaiter().GetResult();
+
                 sbHtmlPageBody.Append("<tr>");
                 sbHtmlPageBody.Append(AddCell(String.Format(
                     "<a href=\"session?BeginString={0}&SenderCompID={1}&TargetCompID={2}\">{0}:{1}->{2}</a>",
                     session.BeginString, session.SenderCompID, session.TargetCompID)));
-                sbHtmlPageBody.Append(AddCell(sessionDetails.IsInitiator ? "initiator" : "acceptor"));
+                sbHtmlPageBody.Append(AddCell(sDetails.IsInitiator ? "initiator" : "acceptor"));
                 sbHtmlPageBody.Append(AddCell(sessionDetails.IsEnabled ? "yes" : "no"));
                 sbHtmlPageBody.Append(AddCell(sessionDetails.IsSessionTime ? "yes" : "no"));
-                sbHtmlPageBody.Append(AddCell(sessionDetails.IsLoggedOn ? "yes" : "no"));
+                sbHtmlPageBody.Append(AddCell(sDetails.IsLoggedOn ? "yes" : "no"));
                 sbHtmlPageBody.Append(AddCell(sessionDetails.NextTargetMsgSeqNum.ToString()));
                 sbHtmlPageBody.Append(AddCell(sessionDetails.NextSenderMsgSeqNum.ToString()));
                 sbHtmlPageBody.Append("</tr>");
@@ -364,6 +369,8 @@ namespace Acceptor
         {
             SessionID sessionId = new SessionID(request.QueryString["beginstring"], request.QueryString["sendercompid"], request.QueryString["targetcompid"]);
             Session sessionDetails = Session.LookupSession(sessionId);
+            //TODO: nmandzyk should be use correct ct
+            var sDetails = sessionDetails.GetDetails(CancellationToken.None).GetAwaiter().GetResult();
             if (sessionDetails == null) throw new Exception("Session not found");
             StringBuilder sbHtmlPageBody = _sbHtmlHeader;
 
@@ -476,9 +483,9 @@ namespace Acceptor
             sbHtmlPageBody.Append("<table id=\"session_details\" style=\"border-width:1; padding:2; width:100%\">");
             
             sbHtmlPageBody.Append(AddRow("Enabled", sessionDetails.IsEnabled, url));
-            sbHtmlPageBody.Append(AddRow("ConnectionType", sessionDetails.IsInitiator?"initiator": "acceptor"));
+            sbHtmlPageBody.Append(AddRow("ConnectionType", sDetails.IsInitiator?"initiator": "acceptor"));
             sbHtmlPageBody.Append(AddRow("SessionTime", sessionDetails.IsSessionTime));
-            sbHtmlPageBody.Append(AddRow("LoggedOn", sessionDetails.IsLoggedOn));
+            sbHtmlPageBody.Append(AddRow("LoggedOn", sDetails.IsLoggedOn));
             sbHtmlPageBody.Append(AddRow("Next Incoming", sessionDetails.NextTargetMsgSeqNum, url));
             sbHtmlPageBody.Append(AddRow("Next Outgoing", sessionDetails.NextSenderMsgSeqNum, url));
             sbHtmlPageBody.Append(AddRow("SendRedundantResendRequests", sessionDetails.SendRedundantResendRequests, url));

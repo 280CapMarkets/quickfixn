@@ -40,18 +40,18 @@ namespace QuickFix
             socketSettings_ = socketSettings;
         }
 
-        public Task Start()
+        public Task Start(CancellationToken cancellationToken)
         {
             isDisconnectRequested_ = false;
-            return Transport.SocketInitiator.SocketInitiatorThreadStart(this);
+            return Transport.SocketInitiator.SocketInitiatorThreadStart(this, cancellationToken);
         }
 
-        public void Connect()
+        public Task Connect(CancellationToken cancellationToken)
         {
             Debug.Assert(stream_ == null);
 
             stream_ = SetupStream();
-            session_.SetResponder(this);
+            return session_.SetResponder(this, cancellationToken);
         }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace QuickFix
         {
             while (cancellationToken.IsCancellationRequested)
             {
-                session_?.Next();
+                if(session_ != default) await session_.Next(cancellationToken);
                 //TODO: should be replaced by timer it will be much efficient
                 await Task.Delay(TimeSpan.FromMilliseconds(10), cancellationToken);
             }
@@ -77,10 +77,7 @@ namespace QuickFix
 
         public Task ParseMessages(CancellationToken cancellationToken)
         {
-            return _messageReader.ReadMessages((msg) =>
-            {
-                session_?.Next(msg);
-            }, cancellationToken);
+            return _messageReader.ReadMessages((msg, ct) => session_?.Next(msg, ct), cancellationToken);
         }
 
         public async Task ReadData(CancellationToken cancellationToken)

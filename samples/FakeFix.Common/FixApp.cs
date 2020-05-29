@@ -67,7 +67,7 @@ namespace FakeFix.Common
         private void SendingMessageWorker(Session session)
         {
             var sessionId = session.SessionID.ToString();
-            while (!_cancellationTokenSource.Token.IsCancellationRequested && session.IsLoggedOn)
+            while (!_cancellationTokenSource.Token.IsCancellationRequested && session.GetDetails(_cancellationTokenSource.Token).GetAwaiter().GetResult().IsLoggedOn)
             {
                 session.Send(_messageFactoryFunc(sessionId));
             }

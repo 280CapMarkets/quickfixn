@@ -101,13 +101,15 @@ namespace QuickFix
         /// </summary>
         /// <param name="sessionID">ID of session to be removed</param>
         /// <param name="terminateActiveSession">if true, force disconnection and removal of session even if it has an active connection</param>
+        /// <param name="cancellationToken"></param>
         /// <returns>true if session removed or not already present; false if could not be removed due to an active connection</returns>
-        public async Task<bool> RemoveSession(SessionID sessionID, bool terminateActiveSession)
+        public async Task<bool> RemoveSession(SessionID sessionID, bool terminateActiveSession, CancellationToken cancellationToken)
         {
             if (!_sessions.TryGetValue(sessionID, out var session)) return false;
-            using (await session.CriticalSection.EnterAsync().ConfigureAwait(false))
+            using (await session.CriticalSection.EnterAsync(cancellationToken))
             {
-                if (session.IsLoggedOn && !terminateActiveSession) return false;
+                var sessionDetails = await session.GetDetails(cancellationToken);
+                if (sessionDetails.IsLoggedOn && !terminateActiveSession) return false;
                 if (!_sessions.TryRemove(sessionID, out session)) return false;
                 _settings.Remove(sessionID);
                 if(session.ConnectionState.CanDisconnect)
@@ -121,16 +123,14 @@ namespace QuickFix
         /// <summary>
         /// Logout existing session and close connection.  Attempt graceful disconnect first.
         /// </summary>
-        public void Stop()
-        {
-            Stop(false);
-        }
+        public Task Stop(CancellationToken cancellationToken) => Stop(false, cancellationToken);
 
         /// <summary>
         /// Logout existing session and close connection
         /// </summary>
         /// <param name="force">If true, terminate immediately.  </param>
-        public void Stop(bool force)
+        /// <param name="cancellationToken"></param>
+        public async Task Stop(bool force, CancellationToken cancellationToken)
         {
             if (_disposed)
                 throw new System.ObjectDisposedException(this.GetType().Name);
@@ -152,7 +152,7 @@ namespace QuickFix
             if (!force)
             {
                 // TODO change this duration to always exceed LogoutTimeout setting
-                for (int second = 0; (second < 10) && IsLoggedOn; ++second)
+                for (int second = 0; (second < 10) && (await IsLoggedOn(cancellationToken)); ++second)
                     Thread.Sleep(1000);
             }
 
@@ -171,7 +171,18 @@ namespace QuickFix
            _sessions.Clear();
         }
 
-        public bool IsLoggedOn => _sessions.Values.Any(s => s.ConnectionState.IsConnected && s.IsLoggedOn);
+        //TODO: nmandzyk - should analyzed more precisely 
+        public async Task<bool> IsLoggedOn(CancellationToken cancellationToken)
+        {
+
+            foreach (var session in _sessions.Values)
+            {
+                if (session.ConnectionState.IsConnected &&
+                    (await session.GetDetails(cancellationToken)).IsLoggedOn) return true;
+            }
+
+            return false;
+        }
 
         #region Virtual Methods
 
@@ -213,13 +224,14 @@ namespace QuickFix
         /// </summary>
         /// <param name="session"></param>
         /// <param name="settings"></param>
-        protected abstract void DoConnect(Session.Session session, QuickFix.Dictionary settings);
+        /// <param name="cancellationToken"></param>
+        protected abstract Task DoConnect(Session.Session session, QuickFix.Dictionary settings, CancellationToken cancellationToken);
 
         #endregion
 
         #region Protected Methods
 
-        protected void Connect()
+        protected async Task Connect(CancellationToken cancellationToken)
         {
             var sessions =  _sessions.Values.Where(s => s.ConnectionState.IsDisconnected).ToArray();
             foreach (var session in sessions)
@@ -229,9 +241,9 @@ namespace QuickFix
                 if (!session.IsEnabled) continue;
 
                 if (session.IsNewSession)
-                    session.Reset("New session");
+                    await session.Reset("New session", cancellationToken);
                 if (session.IsSessionTime)
-                    DoConnect(session, _settings.Get(session.SessionID));
+                    await DoConnect(session, _settings.Get(session.SessionID), cancellationToken);
             }
         }
         #endregion
@@ -249,15 +261,16 @@ namespace QuickFix
         /// Any override should call base.Dispose(disposing).
         /// </summary>
         /// <param name="disposing"></param>
-        protected virtual void Dispose(bool disposing)
+        /// <param name="cancellationToken"></param>
+        protected virtual async Task Dispose(bool disposing, CancellationToken cancellationToken)
         {
-            this.Stop();
+            await Stop(cancellationToken);
             _disposed = true;
         }
 
         public void Dispose()
         {
-            Dispose(true);
+            Dispose(true, CancellationToken.None).GetAwaiter().GetResult();
         }
     }
 }

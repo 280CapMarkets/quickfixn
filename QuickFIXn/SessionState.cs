@@ -43,8 +43,7 @@ namespace QuickFix
         public IMessageStore MessageStore
         { get; set; }
 
-        public bool IsInitiator
-        { get; set; }
+        public bool IsInitiator { get; private set; }
 
         public bool ShouldSendLogon
         { get { return IsInitiator && !SentLogon; } }

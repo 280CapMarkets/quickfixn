@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using QuickFix.Fields;
 using QuickFix.Fields.Converters;
 using QuickFix.StateManagement;
@@ -30,9 +31,7 @@ namespace QuickFix.Session
         private bool appDoesEarlyIntercept_;
         private static readonly HashSet<string> AdminMsgTypes = new HashSet<string>() { "0", "A", "1", "2", "3", "4", "5" };
         private bool disposed_;
-
         private readonly AwaitableCriticalSection _awaitableCriticalSection;
-        private readonly CancellationTokenSource _sessionCancellationTokenSource;
 
         #endregion
 
@@ -41,15 +40,15 @@ namespace QuickFix.Session
         public IConnectionState ConnectionState => state_;
 
         // state
-        public IMessageStore MessageStore { get { return state_.MessageStore; } }
+        public IMessageStore MessageStore => state_.MessageStore;
+
         public ILog Log { get { return state_.Log; } }
-        public bool IsInitiator { get { return state_.IsInitiator; } }
-        public bool IsAcceptor { get { return !state_.IsInitiator; } }
+        //public bool IsInitiator { get { return state_.IsInitiator; } }
+        //public bool IsAcceptor { get { return !state_.IsInitiator; } }
         public bool IsEnabled { get { return state_.IsEnabled; } }
         public bool IsSessionTime => schedule_.IsSessionTime(DateTime.UtcNow);
-        public bool IsLoggedOn { get { return ReceivedLogon && SentLogon; } }
-        public bool SentLogon { get { return state_.SentLogon; } }
-        public bool ReceivedLogon { get { return state_.ReceivedLogon; } }
+        private bool IsLoggedOn => state_.ReceivedLogon && state_.SentLogon;
+
         public bool IsNewSession
         {
             get
@@ -250,16 +249,12 @@ namespace QuickFix.Session
         #endregion
 
         public AwaitableCriticalSection CriticalSection => _awaitableCriticalSection;
-        public CancellationToken SessionCancellationToken => _sessionCancellationTokenSource.Token;
-       
-
 
         public Session(
             IApplication app, IMessageStoreFactory storeFactory, SessionID sessID, DataDictionaryProvider dataDictProvider,
             SessionSchedule sessionSchedule, int heartBtInt, ILogFactory logFactory, IMessageFactory msgFactory, string senderDefaultApplVerID, CancellationToken cancellationToken)
         {
-            this._awaitableCriticalSection = new AwaitableCriticalSection();
-            _sessionCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            this._awaitableCriticalSection = new AwaitableCriticalSection(true);
             this.Application = app;
             this.SessionID = sessID;
             this.DataDictionaryProvider = new DataDictionaryProvider(dataDictProvider);
@@ -304,9 +299,9 @@ namespace QuickFix.Session
             this.MaxLatency = 120;
 
             if (!IsSessionTime)
-                Reset("Out of SessionTime (Session construction)");
+                Reset("Out of SessionTime (Session construction)", cancellationToken).GetAwaiter().GetResult();
             else if (IsNewSession)
-                Reset("New session");
+                Reset("New session", cancellationToken).GetAwaiter().GetResult();
 
             lock (sessions_)
             {
@@ -372,6 +367,18 @@ namespace QuickFix.Session
         }
 
         #endregion
+
+        public async Task<SessionDetails> GetDetails(CancellationToken cancellationToken)
+        {
+            using (await _awaitableCriticalSection.EnterAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return new SessionDetails
+                {
+                    IsInitiator = state_.IsInitiator,
+                    IsLoggedOn = IsLoggedOn
+                };
+            }
+        }
 
         /// <summary>
         /// Sends a message via the session indicated by the header fields
@@ -473,20 +480,20 @@ namespace QuickFix.Session
         /// There's no message to process, but check the session state to see if there's anything to do
         /// (e.g. send heartbeat, logout at end of session, etc)
         /// </summary>
-        public void Next()
+        public async Task Next(CancellationToken cancellationToken)
         {
             //session is a root object that heavy use by thread so should be sync just session and mesages threads
-            using (_awaitableCriticalSection.EnterAsync())
+            using (await _awaitableCriticalSection.EnterAsync(cancellationToken))
             {
                 if (!HasResponder)
                     return;
 
                 if (!IsSessionTime)
                 {
-                    if (IsInitiator == false)
+                    if (!state_.IsInitiator)
                         Reset("Out of SessionTime (Session.Next())", "Message received outside of session time");
                     else
-                        Reset("Out of SessionTime (Session.Next())");
+                        await Reset("Out of SessionTime (Session.Next())", cancellationToken);
                     return;
                 }
 
@@ -560,10 +567,10 @@ namespace QuickFix.Session
         /// Process a message (in string form) from the counterparty
         /// </summary>
         /// <param name="msgStr"></param>
-        public void Next(string msgStr)
+        public async Task Next(string msgStr, CancellationToken cancellationToken)
         {
             //session is a root object that heavy use by thread so should be sync just session and mesages threads
-            using (_awaitableCriticalSection.EnterAsync())
+            using (await _awaitableCriticalSection.EnterAsync(cancellationToken))
             {
                 NextMessage(msgStr);
                 NextQueued();
@@ -969,7 +976,7 @@ namespace QuickFix.Session
             }
         }
 
-        public bool Verify(Message message)
+        private bool Verify(Message message)
         {
             return Verify(message, true, true);
         }
@@ -1049,9 +1056,9 @@ namespace QuickFix.Session
             return true;
         }
 
-        public void SetResponder(IResponder responder)
+        public async Task SetResponder(IResponder responder, CancellationToken cancellationToken)
         {
-            using (_awaitableCriticalSection.EnterAsync())
+            using (await _awaitableCriticalSection.EnterAsync(cancellationToken))
             {
                 if (!IsSessionTime)
                     Reset("Out of SessionTime (Session.SetResponder)", null);
@@ -1068,9 +1075,9 @@ namespace QuickFix.Session
         /// Send a logout, disconnect, and reset session state
         /// </summary>
         /// <param name="loggedReason">reason for the reset (for the log)</param>
-        public void Reset(string loggedReason)
+        public async Task Reset(string loggedReason, CancellationToken cancellationToken)
         {
-            using(_awaitableCriticalSection.EnterAsync())
+            using(await _awaitableCriticalSection.EnterAsync(cancellationToken))
                 Reset(loggedReason, null);
         }
 
@@ -1113,22 +1120,22 @@ namespace QuickFix.Session
         }
 
         /// FIXME
-        protected bool IsTimeToGenerateLogon()
+        private bool IsTimeToGenerateLogon()
         {
             return true;
         }
 
-        protected bool IsTargetTooHigh(int msgSeqNum)
+        private bool IsTargetTooHigh(int msgSeqNum)
         {
             return msgSeqNum > state_.GetNextTargetMsgSeqNum();
         }
 
-        protected bool IsTargetTooLow(int msgSeqNum)
+        private bool IsTargetTooLow(int msgSeqNum)
         {
             return msgSeqNum < state_.GetNextTargetMsgSeqNum();
         }
 
-        protected void DoTargetTooHigh(Message msg, int msgSeqNum)
+        private void DoTargetTooHigh(Message msg, int msgSeqNum)
         {
             string beginString = msg.Header.GetString(Fields.Tags.BeginString);
 
@@ -1149,7 +1156,7 @@ namespace QuickFix.Session
             GenerateResendRequest(beginString, msgSeqNum);
         }
 
-        protected void DoTargetTooLow(Message msg, int msgSeqNum)
+        private void DoTargetTooLow(Message msg, int msgSeqNum)
         {
             bool possDupFlag = false;
             if (msg.Header.IsSetField(Fields.Tags.PossDupFlag))
@@ -1169,7 +1176,7 @@ namespace QuickFix.Session
         /// Validates a message where PossDupFlag=Y
         /// </summary>
         /// <param name="msg"></param>
-        protected void DoPossDup(Message msg)
+        private void DoPossDup(Message msg)
         {
             // If config RequiresOrigSendingTime=N, then tolerate SequenceReset messages that lack OrigSendingTime (issue #102).
             // (This field doesn't really make sense in this message, so some parties omit it, even though spec requires it.)
@@ -1196,7 +1203,7 @@ namespace QuickFix.Session
             }
         }
 
-        protected void GenerateBusinessMessageReject(Message message, int err, int field)
+        private void GenerateBusinessMessageReject(Message message, int err, int field)
         {
             string msgType = message.Header.GetString(Tags.MsgType);
             int msgSeqNum = message.Header.GetInt(Tags.MsgSeqNum);
@@ -1225,7 +1232,7 @@ namespace QuickFix.Session
             SendRaw(reject, 0);
         }
 
-        protected bool GenerateResendRequestRange(string beginString, int startSeqNum, int endSeqNum)
+        private bool GenerateResendRequestRange(string beginString, int startSeqNum, int endSeqNum)
         {
             Message resendRequest = msgFactory_.Create(beginString, MsgType.RESEND_REQUEST);
 
@@ -1245,7 +1252,7 @@ namespace QuickFix.Session
             }
         }
 
-        protected bool GenerateResendRequest(string beginString, int msgSeqNum)
+        private bool GenerateResendRequest(string beginString, int msgSeqNum)
         {
             int beginSeqNum = state_.GetNextTargetMsgSeqNum();
             int endRangeSeqNum = msgSeqNum - 1;
@@ -1276,7 +1283,7 @@ namespace QuickFix.Session
         /// FIXME
         /// </summary>
         /// <returns></returns>
-        protected bool GenerateLogon()
+        private bool GenerateLogon()
         {
             Message logon = msgFactory_.Create(this.SessionID.BeginString, Fields.MsgType.LOGON);
             logon.SetField(new Fields.EncryptMethod(0));
@@ -1303,7 +1310,7 @@ namespace QuickFix.Session
         /// </summary>
         /// <param name="otherLogon"></param>
         /// <returns></returns>
-        protected bool GenerateLogon(Message otherLogon)
+        private bool GenerateLogon(Message otherLogon)
         {
             Message logon = msgFactory_.Create(this.SessionID.BeginString, Fields.MsgType.LOGON);
             logon.SetField(new Fields.EncryptMethod(0));
@@ -1318,7 +1325,7 @@ namespace QuickFix.Session
             return state_.SentLogon;
         }
 
-        public bool GenerateTestRequest(string id)
+        private bool GenerateTestRequest(string id)
         {
             Message testRequest = msgFactory_.Create(this.SessionID.BeginString, Fields.MsgType.TEST_REQUEST);
             InitializeHeader(testRequest);
@@ -1330,7 +1337,7 @@ namespace QuickFix.Session
         /// Send a basic Logout message
         /// </summary>
         /// <returns></returns>
-        public bool GenerateLogout()
+        private bool GenerateLogout()
         {
             return GenerateLogout(null, null);
         }
@@ -1389,7 +1396,7 @@ namespace QuickFix.Session
             return SendRaw(heartbeat, 0);
         }
 
-        public bool GenerateHeartbeat(Message testRequest)
+        private bool GenerateHeartbeat(Message testRequest)
         {
             Message heartbeat = msgFactory_.Create(this.SessionID.BeginString, Fields.MsgType.HEARTBEAT);
             InitializeHeader(heartbeat);
@@ -1407,22 +1414,22 @@ namespace QuickFix.Session
         }
 
 
-        internal bool GenerateReject(MessageBuilder msgBuilder, FixValues.SessionRejectReason reason)
+        private bool GenerateReject(MessageBuilder msgBuilder, FixValues.SessionRejectReason reason)
         {
             return GenerateReject(msgBuilder.RejectableMessage(), reason, 0);
         }
-       
-        internal bool GenerateReject(MessageBuilder msgBuilder, FixValues.SessionRejectReason reason, int field)
+
+        private bool GenerateReject(MessageBuilder msgBuilder, FixValues.SessionRejectReason reason, int field)
         {
             return GenerateReject(msgBuilder.RejectableMessage(), reason, field);
         }
 
-        public bool GenerateReject(Message message, FixValues.SessionRejectReason reason)
+        private bool GenerateReject(Message message, FixValues.SessionRejectReason reason)
         {
             return GenerateReject(message, reason, 0);
         }
 
-        public bool GenerateReject(Message message, FixValues.SessionRejectReason reason, int field)
+        private bool GenerateReject(Message message, FixValues.SessionRejectReason reason, int field)
         {
             string beginString = this.SessionID.BeginString;
 
@@ -1490,7 +1497,7 @@ namespace QuickFix.Session
             return SendRaw(reject, 0);
         }
 
-        protected void PopulateSessionRejectReason(Message reject, int field, string text, bool includeFieldInfo)
+        private void PopulateSessionRejectReason(Message reject, int field, string text, bool includeFieldInfo)
         {
             if (this.SessionID.BeginString.CompareTo(FixValues.BeginString.FIX42) >= 0)
             {
@@ -1506,7 +1513,7 @@ namespace QuickFix.Session
             }
         }
 
-        protected void PopulateRejectReason(Message reject, string text)
+        private void PopulateRejectReason(Message reject, string text)
         {
             reject.SetField(new Fields.Text(text));
         }
@@ -1516,7 +1523,7 @@ namespace QuickFix.Session
         /// </summary>
         /// <param name="m"></param>
         /// <param name="msgSeqNum"></param>
-        protected void InitializeHeader(Message m, int msgSeqNum)
+        private void InitializeHeader(Message m, int msgSeqNum)
         {
             state_.LastSentTimeDT = DateTime.UtcNow;
             m.Header.SetField(new Fields.BeginString(this.SessionID.BeginString));
@@ -1543,12 +1550,13 @@ namespace QuickFix.Session
 
             InsertSendingTime(m.Header);
         }
-        protected void InitializeHeader(Message m)
+
+        private void InitializeHeader(Message m)
         {
             InitializeHeader(m, 0);
         }
 
-        protected void InsertSendingTime(FieldMap header)
+        private void InsertSendingTime(FieldMap header)
         {
             bool fix42OrAbove = false;
             if (this.SessionID.BeginString == FixValues.BeginString.FIXT11)
@@ -1559,7 +1567,7 @@ namespace QuickFix.Session
             header.SetField(new Fields.SendingTime(System.DateTime.UtcNow, fix42OrAbove ? TimeStampPrecision : TimeStampPrecision.Second ) );
         }
 
-        protected void Persist(Message message, string messageString)
+        private void Persist(Message message, string messageString)
         {
             if (this.PersistMessages)
             {
@@ -1569,7 +1577,7 @@ namespace QuickFix.Session
             state_.IncrNextSenderMsgSeqNum();
         }
 
-        protected bool IsGoodTime(Message msg)
+        private bool IsGoodTime(Message msg)
         {
             if (!CheckLatency)
                 return true;
@@ -1610,7 +1618,7 @@ namespace QuickFix.Session
             this.Log.OnEvent("Sent SequenceReset TO: " + newSeqNo);
         }
 
-        protected void InsertOrigSendingTime(FieldMap header, System.DateTime sendingTime)
+        private void InsertOrigSendingTime(FieldMap header, System.DateTime sendingTime)
         {
             bool fix42OrAbove = false;
             if (this.SessionID.BeginString == FixValues.BeginString.FIXT11)
@@ -1620,7 +1628,8 @@ namespace QuickFix.Session
 
             header.SetField(new OrigSendingTime(sendingTime, fix42OrAbove ? TimeStampPrecision : TimeStampPrecision.Second ) );
         }
-        protected void NextQueued()
+
+        private void NextQueued()
         {
             while (NextQueued(state_.MessageStore.GetNextTargetMsgSeqNum()))
             {
@@ -1628,7 +1637,7 @@ namespace QuickFix.Session
             }
         }
 
-        protected bool NextQueued(int num)
+        private bool NextQueued(int num)
         {
             Message msg = state_.Dequeue(num);
 
@@ -1656,7 +1665,7 @@ namespace QuickFix.Session
             return AdminMsgTypes.Contains(msgType);
         }
 
-        protected bool SendRaw(Message message, int seqNum)
+        private bool SendRaw(Message message, int seqNum)
         {
             lock (sync_)
             {
@@ -1712,7 +1721,6 @@ namespace QuickFix.Session
                 disposed_ = true;
             }
             _awaitableCriticalSection.Dispose();
-            _sessionCancellationTokenSource.Dispose();
         }
 
         public bool Disposed

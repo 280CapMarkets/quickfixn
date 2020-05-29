@@ -61,7 +61,7 @@ namespace QuickFix
             }
         }
 
-        public async Task ReadMessages(Action<string> receivedMessage, CancellationToken cancellationToken)
+        public async Task ReadMessages(Func<string, CancellationToken, Task> receivedMessage, CancellationToken cancellationToken)
         {
             await Task.Yield();
             try
@@ -75,7 +75,7 @@ namespace QuickFix
                     while (endOfMessagePosition.HasValue)
                     {
                         var msg = buffer.Slice(0, endOfMessagePosition.Value);
-                        receivedMessage(GetString(msg));
+                        await receivedMessage(GetString(msg), cancellationToken);
                         buffer = buffer.Slice(endOfMessagePosition.Value);
                         endOfMessagePosition = FindEndOfMessagePosition(buffer);
                     }

@@ -39,9 +39,9 @@ namespace TradeClient
                 // this is a developer-test kludge.  do not emulate.
                 application.MyInitiator = initiator;
 
-                initiator.Start(CancellationToken.None);
-                application.Run();
-                initiator.Stop();
+                initiator.Start(CancellationToken.None).GetAwaiter().GetResult();
+                application.Run(CancellationToken.None).GetAwaiter().GetResult();
+                initiator.Stop(CancellationToken.None).GetAwaiter().GetResult();
             }
             catch (System.Exception e)
             {

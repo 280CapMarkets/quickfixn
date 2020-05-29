@@ -1,6 +1,7 @@
 ﻿using System.Net.Sockets;
 using System.Threading;
 using System;
+using System.Threading.Tasks;
 
 namespace QuickFix
 {
@@ -70,7 +71,8 @@ namespace QuickFix
 
         public void Start()
         {
-            thread_ = new Thread(Run);
+            //TODO: nmandzyk should be fixed for server
+            thread_ = new Thread(() => Run(CancellationToken.None).GetAwaiter().GetResult());
             thread_.Start();
         }
 
@@ -89,13 +91,13 @@ namespace QuickFix
             thread_ = null;
         }
 
-        public void Run()
+        public async Task Run(CancellationToken cancellationToken)
         {
             while (!isShutdownRequested_)
             {
                 try
                 {
-                    socketReader_.Read();
+                    await socketReader_.Read(cancellationToken);
                 }
                 catch (System.Exception e)
                 {

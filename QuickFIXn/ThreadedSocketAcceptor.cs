@@ -224,7 +224,8 @@ namespace QuickFix
                 {
                     try
                     {
-                        if (session.IsLoggedOn)
+                        //TODO: nmandzyk should be fixed for server
+                        if (session.GetDetails(CancellationToken.None).Result.IsLoggedOn)
                             session.Disconnect("Forcibly disconnecting session");
                     }
                     catch (System.Exception e)
@@ -338,7 +339,8 @@ namespace QuickFix
         {
             get
             {
-                return sessions_.Values.Any(session => session.IsLoggedOn);
+                //TODO: nmandzyk should be fixed for server
+                return sessions_.Values.Any(session => session.GetDetails(CancellationToken.None).Result.IsLoggedOn);
             }
         }
 
@@ -390,7 +392,8 @@ namespace QuickFix
             Session.Session session = null;
             if (sessions_.TryGetValue(sessionID, out session))
             {
-                if (session.IsLoggedOn && !terminateActiveSession)
+                //TODO: nmandzyk should fixed for server
+                if (session.GetDetails(CancellationToken.None).GetAwaiter().GetResult().IsLoggedOn && !terminateActiveSession)
                     return false;
                 session.Disconnect("Dynamic session removal");
                 foreach (AcceptorSocketDescriptor descriptor in socketDescriptorForAddress_.Values)

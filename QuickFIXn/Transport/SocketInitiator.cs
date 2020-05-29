@@ -37,7 +37,7 @@ namespace QuickFix.Transport
             : base(application, storeFactory, settings, logFactory, messageFactory)
         { }
 
-        public static async Task SocketInitiatorThreadStart(SocketInitiatorThread socketInitiatorThread)
+        public static async Task SocketInitiatorThreadStart(SocketInitiatorThread socketInitiatorThread, CancellationToken cancellationToken)
         {
             if (socketInitiatorThread == null) return;
             string exceptionEvent = null;
@@ -46,20 +46,20 @@ namespace QuickFix.Transport
                 try
                 {
                     var session = socketInitiatorThread.Session;
-                    socketInitiatorThread.Connect();
+                    await socketInitiatorThread.Connect(cancellationToken);
                     socketInitiatorThread.Session.ConnectionState.SetConnected();
                     session.Log.OnEvent("Connection succeeded");
-                    session.Next();
+                    await session.Next(cancellationToken);
 
-                    var sessionTask = socketInitiatorThread.HandleSessionLifeCycle(session.SessionCancellationToken);
-                    var readTask = socketInitiatorThread.ReadData(session.SessionCancellationToken);
-                    var parsingTask = socketInitiatorThread.ParseMessages(session.SessionCancellationToken);
+                    var sessionTask = socketInitiatorThread.HandleSessionLifeCycle(cancellationToken);
+                    var readTask = socketInitiatorThread.ReadData(cancellationToken);
+                    var parsingTask = socketInitiatorThread.ParseMessages(cancellationToken);
 
                     await Task.WhenAll(sessionTask, readTask, parsingTask);
 
                     
                     if (socketInitiatorThread.Initiator.IsStopped)
-                        await socketInitiatorThread.Initiator.RemoveThread(socketInitiatorThread);
+                        await socketInitiatorThread.Initiator.RemoveThread(socketInitiatorThread, cancellationToken);
                     session.ConnectionState.SetDisconnected();
                 }
                 catch (IOException ex) // Can be exception when connecting, during ssl authentication or when reading
@@ -102,14 +102,14 @@ namespace QuickFix.Transport
             }
             finally
             {
-                await socketInitiatorThread.Initiator.RemoveThread(socketInitiatorThread);
+                await socketInitiatorThread.Initiator.RemoveThread(socketInitiatorThread, cancellationToken);
                 socketInitiatorThread.Session.ConnectionState.SetDisconnected();
             }
         }
 
-        private async Task RemoveThread(SocketInitiatorThread thread)
+        private async Task RemoveThread(SocketInitiatorThread thread, CancellationToken cancellationToken)
         {
-            using (thread.Session.CriticalSection.EnterAsync())
+            using (await thread.Session.CriticalSection.EnterAsync(cancellationToken))
             {
                 if (_workerTasks.TryGetValue(thread.Session.SessionID, out var task))
                 {
@@ -177,7 +177,7 @@ namespace QuickFix.Transport
                 var utcDateTimeNow = DateTime.UtcNow;
                 if ((utcDateTimeNow.Subtract(lastConnectTimeDT).TotalMilliseconds) >= span.TotalMilliseconds)
                 {
-                    Connect();
+                    await Connect(cancellationToken);
                     lastConnectTimeDT = utcDateTimeNow;
                 }
                 await Task.Delay(loopTimeout, cancellationToken);
@@ -198,7 +198,7 @@ namespace QuickFix.Transport
             shutdownRequested_ = true;
         }
 
-        protected override void DoConnect(Session.Session session, Dictionary settings)
+        protected override async Task DoConnect(Session.Session session, Dictionary settings, CancellationToken cancellationToken)
         {
             try
             {
@@ -215,7 +215,7 @@ namespace QuickFix.Transport
 
                 // Create a Ssl-SocketInitiatorThread if a certificate is given
                 var t = new SocketInitiatorThread(this, session, socketEndPoint, socketSettings);                
-                var workerTask =  t.Start();
+                var workerTask =  t.Start(cancellationToken);
                 if (!_workerTasks.TryAdd(session.SessionID, workerTask))
                 {
                     throw new InvalidOperationException("Socket initiator thread already exists");

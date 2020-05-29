@@ -3,6 +3,7 @@ using QuickFix;
 using QuickFix.Fields;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using QuickFix.Session;
 
 namespace TradeClient
@@ -77,7 +78,7 @@ namespace TradeClient
         #endregion
 
 
-        public void Run()
+        public async Task Run(CancellationToken cancellationToken)
         {
             while (true)
             {
@@ -97,7 +98,7 @@ namespace TradeClient
                         if (this.MyInitiator.IsStopped)
                         {
                             Console.WriteLine("Restarting initiator...");
-                            this.MyInitiator.Start(CancellationToken.None);
+                            await MyInitiator.Start(cancellationToken);
                         }
                         else
                             Console.WriteLine("Already started.");
@@ -109,7 +110,7 @@ namespace TradeClient
                         else
                         {
                             Console.WriteLine("Stopping initiator...");
-                            this.MyInitiator.Stop();
+                            await MyInitiator.Stop(cancellationToken);
                         }
                     }
                     else if (action == 'q' || action == 'Q')

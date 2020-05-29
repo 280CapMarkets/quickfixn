@@ -32,13 +32,14 @@ namespace UnitTests
 
             //act
             var readDataFromStreamTask = _target.ReadStreamData(stream, cancellationTokenSource.Token);
-            var readMessageTask = _target.ReadMessages(m =>
+            var readMessageTask = _target.ReadMessages((m, ct) =>
             {
                 receivedMessageCount++;
                 if (receivedMessageCount == expectedMessageCount)
                 {
                     cancellationTokenSource.Cancel(false);
                 }
+                return Task.CompletedTask;
             }, cancellationTokenSource.Token);
 
             var writeDataToStreamTask = WriteChunckedMessagesToStream(msg, expectedMessageCount, stream, cancellationTokenSource);

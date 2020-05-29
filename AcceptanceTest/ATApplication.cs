@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading;
 using QuickFix;
 using QuickFix.Session;
 
@@ -144,9 +145,10 @@ namespace AcceptanceTest
         {
             Session session = Session.LookupSession(sessionID);
 
+            //TODO: nmandyzk should be fixed
             // Hey QF/N users, don't do this in a real app.
             if (null != session)
-                session.Reset("AT Session Reset");
+                session.Reset("AT Session Reset", CancellationToken.None).GetAwaiter().GetResult();
         }
 
         public void OnLogout(SessionID sessionID)

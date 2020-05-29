@@ -1,6 +1,8 @@
 ﻿using System.Net.Sockets;
 using System.IO;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace QuickFix
 {
@@ -37,25 +39,25 @@ namespace QuickFix
         }
 
         /// <summary> FIXME </summary>
-        public void Read()
+        public async Task Read(CancellationToken cancellationToken)
         {
             try
             {
-                int bytesRead = ReadSome(readBuffer_, 1000);
+                var bytesRead = ReadSome(readBuffer_, 1000);
                 if (bytesRead > 0)
                     parser_.AddToStream(ref readBuffer_, bytesRead);
                 else if (null != qfSession_)
                 {
-                    qfSession_.Next();
+                    await qfSession_.Next(cancellationToken);
                 }
 
-                ProcessStream();
+                await ProcessStream(cancellationToken);
             }
             catch (MessageParseError e)
             {
                 HandleExceptionInternal(qfSession_, e);
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 HandleExceptionInternal(qfSession_, e);
                 throw e;
@@ -122,10 +124,10 @@ namespace QuickFix
         [Obsolete("This should be made private")]
         public void OnMessageFound(string msg)
         {
-            OnMessageFoundInternal(msg);
+            OnMessageFoundInternal(msg, CancellationToken.None).GetAwaiter().GetResult();
         }
 
-        protected void OnMessageFoundInternal(string msg)
+        protected async Task OnMessageFoundInternal(string msg, CancellationToken cancellationToken)
         {
             try
             {
@@ -138,16 +140,14 @@ namespace QuickFix
                         DisconnectClient();
                         return;
                     }
-                    else
-                    {
-                        if (!HandleNewSession(msg))
-                            return;
-                    }
+
+                    if (!(await HandleNewSession(msg, cancellationToken)))
+                        return;
                 }
 
                 try
                 {
-                    qfSession_.Next(msg);
+                    await qfSession_.Next(msg, cancellationToken);
                 }
                 catch (System.Exception e)
                 {
@@ -195,11 +195,10 @@ namespace QuickFix
             }
         }
 
-        protected void ProcessStream()
+        protected async Task ProcessStream(CancellationToken cancellationToken)
         {
-            string msg;
-            while (ReadMessage(out msg))
-                OnMessageFoundInternal(msg);
+            while (ReadMessage(out var msg))
+                await OnMessageFoundInternal(msg, cancellationToken);
         }
 
         [Obsolete("Static function can't close stream properly")]
@@ -215,7 +214,7 @@ namespace QuickFix
             tcpClient_.Close();
         }
 
-        protected bool HandleNewSession(string msg)
+        protected async Task<bool> HandleNewSession(string msg, CancellationToken cancellationToken)
         {
             if (qfSession_.HasResponder)
             {
@@ -228,7 +227,7 @@ namespace QuickFix
             qfSession_.Log.OnEvent(qfSession_.SessionID + " Socket Reader " + GetHashCode() + " accepting session " + qfSession_.SessionID + " from " + tcpClient_.Client.RemoteEndPoint);
             // FIXME do this here? qfSession_.HeartBtInt = QuickFix.Fields.Converters.IntConverter.Convert(message.GetField(Fields.Tags.HeartBtInt)); /// FIXME
             qfSession_.Log.OnEvent(qfSession_.SessionID + " Acceptor heartbeat set to " + qfSession_.HeartBtInt + " seconds");
-            qfSession_.SetResponder(responder_);
+            await qfSession_.SetResponder(responder_, cancellationToken);
             return true;
         }
 
