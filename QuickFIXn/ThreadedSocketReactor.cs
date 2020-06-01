@@ -59,10 +59,10 @@ namespace QuickFix
             acceptorDescriptor_ = acceptorDescriptor;
         }
 
-        public void Start()
+        public void Start(CancellationToken cancellationToken)
         {
-            serverThread_ = new Thread(new ThreadStart(Run));
-            serverThread_.Start();
+            serverThread_ = new Thread(Run);
+            serverThread_.Start(cancellationToken);
         }
 
         public void Shutdown()
@@ -98,7 +98,7 @@ namespace QuickFix
         /// <summary>
         /// TODO apply networking options, e.g. NO DELAY, LINGER, etc.
         /// </summary>
-        public void Run()
+        public void Run(object cancellationToken)
         {
             lock (sync_)
             {
@@ -124,7 +124,7 @@ namespace QuickFix
 
                         // FIXME set the client thread's exception handler here
                         t.Log("connected");
-                        t.Start();
+                        t.Start((CancellationToken)cancellationToken);
                     }
                     else
                     {

@@ -13,7 +13,7 @@ test_script:
 - cmd: >-
     unit_test.bat
 
-    appveyor_test.bat
+#    appveyor_test.bat
       
 artifacts:
 - path: '**\*.nupkg'

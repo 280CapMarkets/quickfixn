@@ -77,10 +77,10 @@ namespace QuickFix
             socketReader_ = new SocketReader(tcpClient, socketSettings, this, acceptorDescriptor);
         }
 
-        public void Start()
+        public void Start(CancellationToken cancellationToken)
         {
             //TODO: nmandzyk should be fixed for server
-            thread_ = new Thread(() => Run(CancellationToken.None).GetAwaiter().GetResult());
+            thread_ = new Thread(() => Run(cancellationToken).GetAwaiter().GetResult());
             thread_.Start();
         }
 
@@ -119,8 +119,7 @@ namespace QuickFix
 
         protected void OnExited()
         {
-            if (Exited != null)
-                Exited(this, new ExitedEventArgs(this));
+            Exited?.Invoke(this, new ExitedEventArgs(this));
         }
 
         /// FIXME do real logging

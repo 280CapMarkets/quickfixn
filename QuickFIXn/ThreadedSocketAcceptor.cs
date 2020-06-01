@@ -129,14 +129,14 @@ namespace QuickFix
             return false;
         }
 
-        private void StartAcceptingConnections()
+        private void StartAcceptingConnections(CancellationToken cancellationToken)
         {
             lock (sync_)
             {
                 // FIXME StartSessionTimer();
                 foreach (AcceptorSocketDescriptor socketDescriptor in socketDescriptorForAddress_.Values)
                 {
-                    socketDescriptor.SocketReactor.Start();
+                    socketDescriptor.SocketReactor.Start(cancellationToken);
                     // FIXME log_.Info("Listening for connections on " + socketDescriptor.getAddress());
                 }
             }
@@ -257,7 +257,7 @@ namespace QuickFix
             {
                 if (!isStarted_)
                 {
-                    StartAcceptingConnections();
+                    StartAcceptingConnections(cancellationToken);
                     isStarted_ = true;
                 }
             }

@@ -60,7 +60,8 @@ namespace QuickFix
                 var bytesRead = ReadSome(readBuffer_, 1000);
                 if (bytesRead > 0)
                     parser_.AddToStream(readBuffer_, bytesRead);
-                else if (null != qfSession_)
+                else if (null != qfSession_ && qfSession_.Disposed == false
+                ) //TODO: nmandzyk strange why session is not null when it was disposed (should be verified when sever will fix)
                 {
                     await qfSession_.Next(cancellationToken);
                 }
