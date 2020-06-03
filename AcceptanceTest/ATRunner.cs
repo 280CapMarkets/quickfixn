@@ -55,10 +55,8 @@ namespace AcceptanceTest
 
             finally
             {
-                if(acceptor != null)
-                    acceptor.Stop();
+                acceptor?.Stop(CancellationToken.None).Wait();
             }
-            
         }
     }
 }

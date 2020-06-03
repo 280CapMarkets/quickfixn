@@ -3,6 +3,7 @@ using System.Linq;
 using System.Net;
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace QuickFix
 {
@@ -154,7 +155,7 @@ namespace QuickFix
             }
         }
 
-        private void LogoutAllSessions(bool force)
+        private async Task LogoutAllSessions(bool force, CancellationToken cancellationToken)
         {
             foreach (Session.Session session in sessions_.Values)
             {
@@ -175,9 +176,12 @@ namespace QuickFix
                 {
                     try
                     {
-                        //TODO: nmandzyk should be fixed for server
-                        if (session.GetDetails(CancellationToken.None).Result.IsLoggedOn)
-                            session.Disconnect("Forcibly disconnecting session");
+                        using (await session.CriticalSection.EnterAsync(cancellationToken))
+                        {
+                            var sessionDetails = await session.GetDetails(cancellationToken);
+                            if (sessionDetails.IsLoggedOn)
+                                await session.Disconnect("Forcibly disconnecting session", cancellationToken);
+                        }
                     }
                     catch (System.Exception e)
                     {
@@ -263,18 +267,16 @@ namespace QuickFix
             }
         }
 
-        public void Stop()
-        {
-            Stop(false);
-        }
 
-        public void Stop(bool force)
+        public Task Stop(CancellationToken cancellationToken) => Stop(false, cancellationToken);
+
+        public async Task Stop(bool force, CancellationToken cancellationToken)
         {
             if (_disposed)
                 throw new ObjectDisposedException(GetType().Name);
 
             StopAcceptingConnections();
-            LogoutAllSessions(force);
+            await LogoutAllSessions(force, cancellationToken);
             DisposeSessions();
             sessions_.Clear();
 
@@ -335,26 +337,23 @@ namespace QuickFix
         /// <summary>
         /// Ad-hoc removal of an existing session
         /// </summary>
-        /// <param name="sessionID">ID of session to be removed</param>
+        /// <param name="sessionId">ID of session to be removed</param>
         /// <param name="terminateActiveSession">if true, force disconnection and removal of session even if it has an active connection</param>
+        /// <param name="cancellationToken"></param>
         /// <returns>true if session removed or not already present; false if could not be removed due to an active connection</returns>
-        public bool RemoveSession(SessionID sessionID, bool terminateActiveSession)
+        public async Task<bool> RemoveSession(SessionID sessionId, bool terminateActiveSession, CancellationToken cancellationToken)
         {
-            Session.Session session = null;
-            if (sessions_.TryGetValue(sessionID, out session))
-            {
-                //TODO: nmandzyk should fixed for server
-                if (session.GetDetails(CancellationToken.None).GetAwaiter().GetResult().IsLoggedOn && !terminateActiveSession)
-                    return false;
-                session.Disconnect("Dynamic session removal");
-                foreach (AcceptorSocketDescriptor descriptor in socketDescriptorForAddress_.Values)
-                    if (descriptor.RemoveSession(sessionID))
-                        break;
-                sessions_.Remove(sessionID);
-                session.Dispose();
-                lock (settings_)
-                    settings_.Remove(sessionID);
-            }
+            if (!sessions_.TryGetValue(sessionId, out var session)) return true;
+            if (!terminateActiveSession && (await session.GetDetails(cancellationToken)).IsLoggedOn)
+                return false;
+            await session.Disconnect("Dynamic session removal", cancellationToken);
+            foreach (AcceptorSocketDescriptor descriptor in socketDescriptorForAddress_.Values)
+                if (descriptor.RemoveSession(sessionId))
+                    break;
+            sessions_.Remove(sessionId);
+            session.Dispose();
+            lock (settings_)
+                settings_.Remove(sessionId);
             return true;
         }
 
@@ -369,7 +368,8 @@ namespace QuickFix
         {
             try
             {
-                Stop();
+                //TODO: nmandzyk should be fixed by CancellationTokenSource
+                Stop(CancellationToken.None).Wait();
                 _disposed = true;
             }
             catch (ObjectDisposedException)
@@ -384,9 +384,6 @@ namespace QuickFix
         /// <remarks>
         /// To simply stop the acceptor without disposing sessions, use Stop() or Stop(bool)
         /// </remarks>
-        public void Dispose()
-        {
-            Stop();
-        }
+        public void Dispose() => Dispose(false);
     }
 }

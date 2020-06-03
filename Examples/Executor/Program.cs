@@ -43,7 +43,7 @@ namespace Executor
                 Console.Read();
                 
                 srv.Stop();
-                acceptor.Stop();
+                acceptor.Stop(CancellationToken.None).Wait();
             }
             catch (System.Exception e)
             {

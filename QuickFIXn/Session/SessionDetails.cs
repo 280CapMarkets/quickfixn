@@ -12,5 +12,8 @@
 
         public int LogonTimeout { get; set; }
 
+        //TODO: nmandzyk used from server code probably should be move to more lightweight structure
+        public bool HasResponder { get; set; }
+
     }
 }

@@ -240,7 +240,9 @@ namespace QuickFix
 
         protected async Task<bool> HandleNewSession(string msg, CancellationToken cancellationToken)
         {
-            if (qfSession_.HasResponder)
+            //TODO: nmandzyk should revised 
+            var sessionDetails = await qfSession_.GetDetails(cancellationToken);
+            if (sessionDetails.HasResponder)
             {
                 qfSession_.Log.OnIncoming(msg);
                 qfSession_.Log.OnEvent("Multiple logons/connections for this session are not allowed (" + tcpClient_.Client.RemoteEndPoint + ")");
@@ -250,7 +252,7 @@ namespace QuickFix
             }
             qfSession_.Log.OnEvent(qfSession_.SessionID + " Socket Reader " + GetHashCode() + " accepting session " + qfSession_.SessionID + " from " + tcpClient_.Client.RemoteEndPoint);
             // FIXME do this here? qfSession_.HeartBtInt = QuickFix.Fields.Converters.IntConverter.Convert(message.GetField(Fields.Tags.HeartBtInt)); /// FIXME
-            var sessionDetails = await qfSession_.GetDetails(cancellationToken);
+            sessionDetails = await qfSession_.GetDetails(cancellationToken);
             qfSession_.Log.OnEvent(qfSession_.SessionID + " Acceptor heartbeat set to " + sessionDetails.HeartBtInt + " seconds");
             await qfSession_.SetResponder(responder_, cancellationToken);
             return true;
@@ -316,8 +318,8 @@ namespace QuickFix
 
             if (disconnectNeeded)
             {
-                if (null != quickFixSession && quickFixSession.HasResponder)
-                    quickFixSession.Disconnect(reason);
+                if (null != quickFixSession && (await qfSession_.GetDetails(cancellationToken)).HasResponder)
+                    await quickFixSession.Disconnect(reason, cancellationToken);
                 else
                     DisconnectClient();
             }

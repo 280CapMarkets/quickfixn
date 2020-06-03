@@ -448,7 +448,7 @@ namespace UnitTests
         [Test]
         public void NextResendRequestNoMessagePersist()
         {
-            session.PersistMessages = false;
+            session.Initialize(new SessionConfiguration{ PersistMessages =  false}, CancellationToken.None).GetAwaiter().GetResult();
 
             Logon(); //seq 1
 
@@ -535,12 +535,13 @@ namespace UnitTests
             session.Send(reject);
 
             responder.msgLookup.Clear();
-            session.ResendSessionLevelRejects = true;
+
+            session.Initialize(new SessionConfiguration { ResendSessionLevelRejects = true }, CancellationToken.None).GetAwaiter().GetResult();
             SendResendRequest(1, 100);
             Assert.That(responder.msgLookup.ContainsKey(QuickFix.Fields.MsgType.REJECT));
 
             responder.msgLookup.Clear();
-            session.ResendSessionLevelRejects = false;
+            session.Initialize(new SessionConfiguration { ResendSessionLevelRejects = false }, CancellationToken.None).GetAwaiter().GetResult();
             SendResendRequest(1, 100);
             Assert.False(responder.msgLookup.ContainsKey(QuickFix.Fields.MsgType.REJECT));
         }
@@ -572,7 +573,7 @@ namespace UnitTests
             AssertMsInTag(QuickFix.Fields.MsgType.LOGON, QuickFix.Fields.Tags.SendingTime, true);
             
             // No ms
-            session.TimeStampPrecision = QuickFix.Fields.Converters.TimeStampPrecision.Second;
+            session.Initialize(new SessionConfiguration { TimeStampPrecision = TimeStampPrecision.Second }, CancellationToken.None).GetAwaiter().GetResult();
             Logon();
             Assert.That(responder.msgLookup[QuickFix.Fields.MsgType.LOGON].Count == 2);
             AssertMsInTag(QuickFix.Fields.MsgType.LOGON, QuickFix.Fields.Tags.SendingTime, false);
@@ -580,7 +581,7 @@ namespace UnitTests
             // Less than FIX42 - no ms in timestamp, even if you tell it to
             sessionID = new QuickFix.SessionID(QuickFix.FixValues.BeginString.FIX40, "SENDER", "TARGET");
             session.SessionID = sessionID;
-            session.TimeStampPrecision = QuickFix.Fields.Converters.TimeStampPrecision.Millisecond;
+            session.Initialize(new SessionConfiguration { TimeStampPrecision = TimeStampPrecision.Millisecond }, CancellationToken.None).GetAwaiter().GetResult();
             Logon40();
             Assert.That(responder.msgLookup[QuickFix.Fields.MsgType.LOGON].Count == 3);
             AssertMsInTag(QuickFix.Fields.MsgType.LOGON, QuickFix.Fields.Tags.SendingTime, false);
@@ -590,14 +591,14 @@ namespace UnitTests
         public void TestMicrosecondsInSendingTimeStamp()
         {
             // Microseconds in timestamp
-            session.TimeStampPrecision = QuickFix.Fields.Converters.TimeStampPrecision.Microsecond;
+            session.Initialize(new SessionConfiguration { TimeStampPrecision = TimeStampPrecision.Microsecond }, CancellationToken.None).GetAwaiter().GetResult();
 
             // Microseconds should show up
             Logon();
             AssertMicrosecondsInTag(QuickFix.Fields.MsgType.LOGON, QuickFix.Fields.Tags.SendingTime, true);
 
             // Milliseconds in timestamp
-            session.TimeStampPrecision = QuickFix.Fields.Converters.TimeStampPrecision.Millisecond;
+            session.Initialize(new SessionConfiguration { TimeStampPrecision = TimeStampPrecision.Millisecond }, CancellationToken.None).GetAwaiter().GetResult();
             Logon();
             Assert.That(responder.msgLookup[QuickFix.Fields.MsgType.LOGON].Count == 2);
             AssertMsInTag(QuickFix.Fields.MsgType.LOGON, QuickFix.Fields.Tags.SendingTime, true);
@@ -605,7 +606,7 @@ namespace UnitTests
             // Less than FIX42 - no microseconds in timestamp, even if you tell it to
             sessionID = new QuickFix.SessionID(QuickFix.FixValues.BeginString.FIX40, "SENDER", "TARGET");
             session.SessionID = sessionID;
-            session.TimeStampPrecision =  QuickFix.Fields.Converters.TimeStampPrecision.Microsecond;
+            session.Initialize(new SessionConfiguration { TimeStampPrecision = TimeStampPrecision.Microsecond }, CancellationToken.None).GetAwaiter().GetResult();
             Logon40();
             Assert.That(responder.msgLookup[QuickFix.Fields.MsgType.LOGON].Count == 3);
             AssertMicrosecondsInTag(QuickFix.Fields.MsgType.LOGON, QuickFix.Fields.Tags.SendingTime, false);
@@ -625,14 +626,14 @@ namespace UnitTests
             AssertMsInTag(QuickFix.Fields.MsgType.SEQUENCERESET, QuickFix.Fields.Tags.OrigSendingTime, true);
 
             // NO MS
-            session.TimeStampPrecision = QuickFix.Fields.Converters.TimeStampPrecision.Second;
+            session.Initialize(new SessionConfiguration { TimeStampPrecision = TimeStampPrecision.Second }, CancellationToken.None).GetAwaiter().GetResult();
             SendResendRequest(0, 2);
             AssertMsInTag(QuickFix.Fields.MsgType.SEQUENCERESET, QuickFix.Fields.Tags.OrigSendingTime, false);
 
             // Less than FIX42 - no ms in timestamp, even if you tell it to
             sessionID = new QuickFix.SessionID(QuickFix.FixValues.BeginString.FIX40, "SENDER", "TARGET");
             session.SessionID = sessionID;
-            session.TimeStampPrecision = QuickFix.Fields.Converters.TimeStampPrecision.Millisecond;
+            session.Initialize(new SessionConfiguration { TimeStampPrecision = TimeStampPrecision.Millisecond }, CancellationToken.None).GetAwaiter().GetResult();
             SendResendRequest40(0, 2);
             AssertMsInTag(QuickFix.Fields.MsgType.SEQUENCERESET, QuickFix.Fields.Tags.OrigSendingTime, false);
         }
@@ -641,7 +642,7 @@ namespace UnitTests
         public void TestMicrosecondsInOrigSendingTimeStamp()
         {
             // Microsecond in timestamp 
-            session.TimeStampPrecision = QuickFix.Fields.Converters.TimeStampPrecision.Microsecond;
+            session.Initialize(new SessionConfiguration { TimeStampPrecision = TimeStampPrecision.Microsecond }, CancellationToken.None).GetAwaiter().GetResult();
 
             // Logon first
             Logon();
@@ -651,14 +652,14 @@ namespace UnitTests
             AssertMicrosecondsInTag(QuickFix.Fields.MsgType.SEQUENCERESET, QuickFix.Fields.Tags.OrigSendingTime, true);
 
             // NO MS
-            session.TimeStampPrecision = QuickFix.Fields.Converters.TimeStampPrecision.Second;
+            session.Initialize(new SessionConfiguration { TimeStampPrecision = TimeStampPrecision.Second }, CancellationToken.None).GetAwaiter().GetResult(); 
             SendResendRequest(0, 2);
             AssertMicrosecondsInTag(QuickFix.Fields.MsgType.SEQUENCERESET, QuickFix.Fields.Tags.OrigSendingTime, false);
 
             // Less than FIX42 - no ms in timestamp, even if you tell it to
             sessionID = new QuickFix.SessionID(QuickFix.FixValues.BeginString.FIX40, "SENDER", "TARGET");
             session.SessionID = sessionID;
-            session.TimeStampPrecision = QuickFix.Fields.Converters.TimeStampPrecision.Microsecond;
+            session.Initialize(new SessionConfiguration { TimeStampPrecision = TimeStampPrecision.Microsecond }, CancellationToken.None).GetAwaiter().GetResult();
             SendResendRequest40(0, 2);
             AssertMicrosecondsInTag(QuickFix.Fields.MsgType.SEQUENCERESET, QuickFix.Fields.Tags.OrigSendingTime, false);
         }
@@ -668,8 +669,7 @@ namespace UnitTests
         {
             // Disabled by default
             Assert.That(!session.EnableLastMsgSeqNumProcessed);
-
-            session.EnableLastMsgSeqNumProcessed = true;
+            session.Initialize(new SessionConfiguration { EnableLastMsgSeqNumProcessed = true }, CancellationToken.None).GetAwaiter().GetResult();
 
             // Logon 
             Logon();
@@ -702,7 +702,7 @@ namespace UnitTests
             // Default
             Assert.That(session.MaxMessagesInResendRequest, Is.EqualTo(0));
 
-            session.MaxMessagesInResendRequest = 2500;
+            session.Initialize(new SessionConfiguration { MaxMessagesInResendRequest = 2500 }, CancellationToken.None).GetAwaiter().GetResult();
             // Logon 
             Logon();
 
@@ -719,7 +719,7 @@ namespace UnitTests
             order.Header.SetField(new QuickFix.Fields.SenderCompID(sessionID.TargetCompID));
             order.Header.SetField(new QuickFix.Fields.MsgSeqNum(5005));
             // This will generate resend requests
-            session.Verify(order, true, false);
+            session.Verify(order, true, false, CancellationToken.None).Wait();
 
             // 3 resend requests
             //  2->2501
@@ -771,8 +771,8 @@ namespace UnitTests
         {
             // Default is false
             Assert.That(session.IgnorePossDupResendRequests, Is.EqualTo(false));
+            session.Initialize(new SessionConfiguration { IgnorePossDupResendRequests = true }, CancellationToken.None).GetAwaiter().GetResult();
 
-            session.IgnorePossDupResendRequests = true;
             // Logon 
             Logon();
 
@@ -877,7 +877,7 @@ namespace UnitTests
         public void TestRequiresOrigSendingTime_N()
         {
             // Under OrigSendingTime=N, session will allow ResendRequest that lacks OrigSendingTime
-            session.RequiresOrigSendingTime = false;
+            session.Initialize(new SessionConfiguration { RequiresOrigSendingTime = false }, CancellationToken.None).GetAwaiter().GetResult();
 
             Logon();
 
@@ -935,10 +935,11 @@ namespace UnitTests
         public void TestApplicationExtension()
         {
             var mockApp = new MockApplicationExt();
+            var sessionSettings = new SessionConfiguration {HeartBtInt = 0, CheckLatency = false};
             session = new Session(mockApp, new QuickFix.MemoryStoreFactory(), sessionID,
-                new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(config), new SessionConfiguration { HeartBtInt = 0}, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
+                new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(config), sessionSettings, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
             session.SetResponder(responder, CancellationToken.None).GetAwaiter().GetResult();
-            session.CheckLatency = false;
+            
 
             Logon();
             QuickFix.FIX42.NewOrderSingle order = new QuickFix.FIX42.NewOrderSingle(
@@ -978,7 +979,7 @@ namespace UnitTests
         [Test]
         public void TestResendRequestMsgSeqNumNotIgnoredWhenNoPersistance()
         {
-            session.PersistMessages = false;
+            session.Initialize(new SessionConfiguration { PersistMessages = false }, CancellationToken.None).GetAwaiter().GetResult();
 
             Logon();
 

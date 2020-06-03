@@ -39,7 +39,7 @@ namespace SimpleAcceptor
                 acceptor.Start(CancellationToken.None);
                 Console.WriteLine("press <enter> to quit");
                 Console.Read();
-                acceptor.Stop();
+                acceptor.Stop(CancellationToken.None).Wait();
             }
             catch (System.Exception e)
             {

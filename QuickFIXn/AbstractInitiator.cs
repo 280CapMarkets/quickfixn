@@ -113,7 +113,7 @@ namespace QuickFix
                 if (!_sessions.TryRemove(sessionID, out session)) return false;
                 _settings.Remove(sessionID);
                 if(session.ConnectionState.CanDisconnect)
-                    session.Disconnect("Dynamic session removal");
+                    await session.Disconnect("Dynamic session removal", cancellationToken);
                 OnRemove(sessionID); // ensure session's reader thread is gone before we dispose session
             }
             session.Dispose();

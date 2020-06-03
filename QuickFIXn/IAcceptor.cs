@@ -2,6 +2,7 @@
 using System.Net;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace QuickFix
 {
@@ -18,13 +19,14 @@ namespace QuickFix
         /// <summary>
         /// Close exising connections and stop accepting new ones
         /// </summary>
-        void Stop();
+        Task Stop(CancellationToken cancellationToken);
 
         /// <summary>
         /// Close exising connections and stop accepting new ones
         /// </summary>
         /// <param name="force">If true, do not wait for existing Sessions to logout</param>
-        void Stop(bool force);
+        /// <param name="cancellationToken"></param>
+        Task Stop(bool force, CancellationToken cancellationToken);
 
         /// <summary>
         /// Check whether any sessions are logged on
@@ -55,10 +57,11 @@ namespace QuickFix
         /// <summary>
         /// Remove an existing session after acceptor has been started
         /// </summary>
-        /// <param name="sessionID">ID of session to be removed</param>
+        /// <param name="sessionId">ID of session to be removed</param>
         /// <param name="terminateActiveSession">if true, force disconnection and removal of session even if it has an active connection</param>
+        /// <param name="cancellationToken"></param>
         /// <returns>true if session removed or not already present; false if could not be removed due to an active connection</returns>
-        bool RemoveSession(SessionID sessionID, bool terminateActiveSession);
+        Task<bool> RemoveSession(SessionID sessionId, bool terminateActiveSession, CancellationToken cancellationToken);
     }
 
     /// <summary>
