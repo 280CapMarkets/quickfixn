@@ -142,9 +142,12 @@ namespace QuickFix
 
             foreach (var session in connectedSessions)
             {
-                var sessionDetails = await session.GetDetails(cancellationToken);
-                if (!sessionDetails.IsEnabled) continue;
-                session.Logout();
+                using (await session.CriticalSection.EnterAsync(cancellationToken))
+                {
+                    var sessionDetails = await session.GetDetails(cancellationToken);
+                    if (!sessionDetails.IsEnabled) continue;
+                    await session.Logout(cancellationToken);
+                }
             }
 
             if (!force)

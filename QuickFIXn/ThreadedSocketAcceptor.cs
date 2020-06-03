@@ -161,7 +161,7 @@ namespace QuickFix
             {
                 try
                 {
-                    session.Logout();
+                    await session.Logout(cancellationToken);
                 }
                 catch (System.Exception e)
                 {

@@ -491,7 +491,7 @@ namespace UnitTests
 
             for (int msgSeqNum = gapStarts[1]; msgSeqNum < gapEnds[1]; ++msgSeqNum)
             {
-                session.GenerateHeartbeat();
+                session.GenerateHeartbeat(CancellationToken.None).Wait();
             } //seq 7, next is 8
 
             for (int msgSeqNum = gapEnds[1]; msgSeqNum < gapStarts[2]; ++msgSeqNum)
@@ -503,7 +503,7 @@ namespace UnitTests
 
             for (int msgSeqNum = gapStarts[2]; msgSeqNum < gapEnds[2]; ++msgSeqNum)
             {
-                session.GenerateHeartbeat();
+                session.GenerateHeartbeat(CancellationToken.None).Wait();
             } // seq 11 - 14
 
             responder.msgLookup.Clear();

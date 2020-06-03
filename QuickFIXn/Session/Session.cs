@@ -332,42 +332,37 @@ namespace QuickFix.Session
         /// <summary>
         /// Looks up a Session by its SessionID
         /// </summary>
-        /// <param name="sessionID">the SessionID of the Session</param>
+        /// <param name="sessionId">the SessionID of the Session</param>
         /// <returns>the Session if found, else returns null</returns>
-        public static Session LookupSession(SessionID sessionID)
+        public static Session LookupSession(SessionID sessionId)
         {
-            Session result;
-            lock (sessions_)
-            {
-                if (!sessions_.TryGetValue(sessionID, out result))
-                    result = null;
-            }
-            return result;
+            sessions_.TryGetValue(sessionId, out var session);
+            return session;
         }
 
         /// <summary>
         /// Looks up a Session by its SessionID
         /// </summary>
-        /// <param name="sessionID">the SessionID of the Session</param>
+        /// <param name="sessionId">the SessionID of the Session</param>
         /// <returns>the true if Session exists, false otherwise</returns>
-        public static bool DoesSessionExist(SessionID sessionID)
+        public static bool DoesSessionExist(SessionID sessionId)
         {
-            return LookupSession(sessionID) == null ? false : true;
+            return LookupSession(sessionId) != null;
         }
 
         /// <summary>
         /// Sends a message to the session specified by the provider session ID.
         /// </summary>
         /// <param name="message">FIX message</param>
-        /// <param name="sessionID">target SessionID</param>
+        /// <param name="sessionId">target SessionID</param>
         /// <param name="cancellationToken"></param>
         /// <returns>true if send was successful, false otherwise</returns>
-        public static Task<bool> SendToTarget(Message message, SessionID sessionID, CancellationToken cancellationToken)
+        public static Task<bool> SendToTarget(Message message, SessionID sessionId, CancellationToken cancellationToken)
         {
-            message.SetSessionID(sessionID);
-            Session session = Session.LookupSession(sessionID);
+            message.SetSessionID(sessionId);
+            Session session = Session.LookupSession(sessionId);
             if (null == session)
-                throw new SessionNotFound(sessionID);
+                throw new SessionNotFound(sessionId);
             return session.Send(message, cancellationToken);
         }
 
@@ -379,8 +374,8 @@ namespace QuickFix.Session
         /// <returns></returns>
         public static Task<bool> SendToTarget(Message message, CancellationToken cancellationToken)
         {
-            SessionID sessionID = message.GetSessionID(message);
-            return SendToTarget(message, sessionID, cancellationToken);
+            SessionID sessionId = message.GetSessionID(message);
+            return SendToTarget(message, sessionId, cancellationToken);
         }
 
         #endregion
@@ -433,19 +428,25 @@ namespace QuickFix.Session
         /// <summary>
         /// Sets some internal state variables.  Despite the name, it does not do anything to make a logon occur.
         /// </summary>
-        public void Logon()
+        public async Task Logon(CancellationToken cancellationToken)
         {
-            state_.IsEnabled = true;
-            state_.LogoutReason = string.Empty;
+            using (await _awaitableCriticalSection.EnterAsync(cancellationToken))
+            {
+                state_.IsEnabled = true;
+                state_.LogoutReason = string.Empty;
+            }
         }
 
         // TODO for v2 - rename, make internal
         /// <summary>
         /// Sets some internal state variables.  Despite the name, it does not cause a logout to occur.
         /// </summary>
-        public void Logout()
+        public async Task Logout(CancellationToken cancellationToken)
         {
-            Logout(string.Empty);
+            using (await _awaitableCriticalSection.EnterAsync(cancellationToken))
+            {
+                Logout(string.Empty);
+            }
         }
 
         // TODO for v2 - rename, make internal
@@ -570,14 +571,13 @@ namespace QuickFix.Session
                 {
                     if (state_.NeedTestRequest())
                     {
-
                         GenerateTestRequest("TEST");
                         state_.TestRequestCounter += 1;
                         this.Log.OnEvent("Sent test request TEST");
                     }
                     else if (state_.NeedHeartbeat())
                     {
-                        GenerateHeartbeat();
+                        GenerateHeartbeatInner();
                     }
                 }
             }
@@ -1419,14 +1419,41 @@ namespace QuickFix.Session
             return state_.SentLogout;
         }
 
-        public bool GenerateHeartbeat()
+        public async Task<bool> GenerateHeartbeat(CancellationToken cancellationToken)
+        {
+            using (await _awaitableCriticalSection.EnterAsync(cancellationToken))
+            {
+                Message heartbeat = msgFactory_.Create(this.SessionID.BeginString, MsgType.HEARTBEAT);
+                InitializeHeader(heartbeat);
+                return SendRaw(heartbeat, 0);
+            }
+        }
+
+
+        private bool GenerateHeartbeatInner()
         {
             Message heartbeat = msgFactory_.Create(this.SessionID.BeginString, Fields.MsgType.HEARTBEAT);
             InitializeHeader(heartbeat);
             return SendRaw(heartbeat, 0);
         }
-        
-       
+
+        private bool GenerateHeartbeat(Message testRequest)
+        {
+            Message heartbeat = msgFactory_.Create(this.SessionID.BeginString, Fields.MsgType.HEARTBEAT);
+            InitializeHeader(heartbeat);
+            try
+            {
+                heartbeat.SetField(new Fields.TestReqID(testRequest.GetString(Fields.Tags.TestReqID)));
+                if (this.EnableLastMsgSeqNumProcessed)
+                {
+                    heartbeat.Header.SetField(new Fields.LastMsgSeqNumProcessed(testRequest.Header.GetInt(Tags.MsgSeqNum)));
+                }
+            }
+            catch (FieldNotFoundException)
+            { }
+            return SendRaw(heartbeat, 0);
+        }
+
 
         private bool GenerateReject(MessageBuilder msgBuilder, FixValues.SessionRejectReason reason)
         {
