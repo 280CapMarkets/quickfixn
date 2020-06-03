@@ -23,8 +23,7 @@ namespace QuickFix.Session
         #region Private Members
 
         private static ConcurrentDictionary<SessionID, Session> sessions_ = new ConcurrentDictionary<SessionID, Session>();
-         
-        private object sync_ = new object();
+
         private IResponder responder_ = null;
         private SessionSchedule schedule_;
         private SessionState state_;
@@ -45,8 +44,6 @@ namespace QuickFix.Session
 
         public ILog Log => state_.Log;
 
-        //public bool IsInitiator { get { return state_.IsInitiator; } }
-        //public bool IsAcceptor { get { return !state_.IsInitiator; } }
         private bool IsEnabled => state_.IsEnabled;
         public bool IsSessionTime => schedule_.IsSessionTime(DateTime.UtcNow);
         private bool IsLoggedOn => state_.ReceivedLogon && state_.SentLogon;
@@ -1708,46 +1705,43 @@ namespace QuickFix.Session
 
         private bool SendRaw(Message message, int seqNum)
         {
-            lock (sync_)
+            string msgType = message.Header.GetString(Fields.Tags.MsgType);
+
+            InitializeHeader(message, seqNum);
+
+            if (Message.IsAdminMsgType(msgType))
             {
-                string msgType = message.Header.GetString(Fields.Tags.MsgType);
+                this.Application.ToAdmin(message, this.SessionID);
 
-                InitializeHeader(message, seqNum);
-
-                if (Message.IsAdminMsgType(msgType))
+                if (MsgType.LOGON.Equals(msgType) && !state_.ReceivedReset)
                 {
-                    this.Application.ToAdmin(message, this.SessionID);
-
-                    if (MsgType.LOGON.Equals(msgType) && !state_.ReceivedReset)
+                    Fields.ResetSeqNumFlag resetSeqNumFlag = new QuickFix.Fields.ResetSeqNumFlag(false);
+                    if (message.IsSetField(resetSeqNumFlag))
+                        message.GetField(resetSeqNumFlag);
+                    if (resetSeqNumFlag.getValue())
                     {
-                        Fields.ResetSeqNumFlag resetSeqNumFlag = new QuickFix.Fields.ResetSeqNumFlag(false);
-                        if (message.IsSetField(resetSeqNumFlag))
-                            message.GetField(resetSeqNumFlag);
-                        if (resetSeqNumFlag.getValue())
-                        {
-                            state_.Reset("ResetSeqNumFlag");
-                            message.Header.SetField(new Fields.MsgSeqNum(state_.GetNextSenderMsgSeqNum()));
-                        }
-                        state_.SentReset = resetSeqNumFlag.Obj;
+                        state_.Reset("ResetSeqNumFlag");
+                        message.Header.SetField(new Fields.MsgSeqNum(state_.GetNextSenderMsgSeqNum()));
                     }
+                    state_.SentReset = resetSeqNumFlag.Obj;
                 }
-                else
-                {
-                    try
-                    {
-                        this.Application.ToApp(message, this.SessionID);
-                    }
-                    catch (DoNotSend)
-                    {
-                        return false;
-                    }
-                }
-
-                string messageString = message.ToString();
-                if (0 == seqNum)
-                    Persist(message, messageString);
-                return Send(messageString);
             }
+            else
+            {
+                try
+                {
+                    this.Application.ToApp(message, this.SessionID);
+                }
+                catch (DoNotSend)
+                {
+                    return false;
+                }
+            }
+
+            string messageString = message.ToString();
+            if (0 == seqNum)
+                Persist(message, messageString);
+            return Send(messageString);
         }
 
         public void Dispose()

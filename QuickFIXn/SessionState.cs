@@ -13,42 +13,23 @@ namespace QuickFix
     {
         #region Private Members
 
-        private object sync_ = new object();
-        private bool isEnabled_ = true;
+       
         private long _connectionState =  (long)ConnectionState.Disconnected;
-        private bool receivedLogon_ = false;
-        private bool receivedReset_ = false;
-        private bool sentLogon_ = false;
-        private bool sentLogout_ = false;
-        private bool sentReset_ = false;
-        private string logoutReason_ = "";
-        private int testRequestCounter_ = 0;
-        private int heartBtInt_ = 0;
-        private int heartBtIntAsMilliSecs_ = 0;
-        private DateTime lastReceivedTimeDT_ = DateTime.MinValue;
-        private DateTime lastSentTimeDT_ = DateTime.MinValue;
-        private int logonTimeout_ = 10;
-        private long logonTimeoutAsMilliSecs_ = 10 * 1000;
-        private int logoutTimeout_ = 2;
-        private long logoutTimeoutAsMilliSecs_ = 2 * 1000;
-        private ResendRange resendRange_ = new ResendRange();
-        private Dictionary<int, Message> msgQueue = new Dictionary<int, Message>();
-
-        private ILog log_;
+        private int _heartBtInt;
+        private int _logonTimeout;
+        private int _logoutTimeout;
+        private ResendRange _resendRange = new ResendRange();
 
         #endregion
 
         #region Unsynchronized Properties
 
-        public IMessageStore MessageStore
-        { get; set; }
+        public IMessageStore MessageStore { get; set; }
+        public bool IsInitiator { get; }
 
-        public bool IsInitiator { get; private set; }
+        public bool ShouldSendLogon => IsInitiator && !SentLogon;
 
-        public bool ShouldSendLogon
-        { get { return IsInitiator && !SentLogon; } }
-
-        public ILog Log => log_;
+        public ILog Log { get; }
 
         #endregion
 
@@ -75,119 +56,66 @@ namespace QuickFix
 
         private bool IsInState(ConnectionState state) => (ConnectionState & state) != 0;
 
-        //public bool IsPending => IsInState(ConnectionState.Pending);
 
-        
+        public bool IsEnabled { get; set; } = true;
+        public bool ReceivedLogon { get; set; }
+        public bool ReceivedReset { get; set; }
+        public bool SentLogon { get; set; }
+        public bool SentLogout { get; set; }
+        public bool SentReset { get; set; }
 
-        public bool IsEnabled
-        {
-            get { lock (sync_) { return isEnabled_; } }
-            set { lock (sync_) { isEnabled_ = value; } }
-        }
+        public string LogoutReason { get; set; } = string.Empty;
 
-        public bool ReceivedLogon
-        {
-            get { lock (sync_) { return receivedLogon_; } }
-            set { lock (sync_) { receivedLogon_ = value; } }
-        }
-
-        public bool ReceivedReset
-        {
-            get { lock (sync_) { return receivedReset_; } }
-            set { lock (sync_) { receivedReset_ = value; } }
-        }
-
-        public bool SentLogon
-        {
-            get { lock (sync_) { return sentLogon_; } }
-            set { lock (sync_) { sentLogon_ = value; } }
-        }
-
-        public bool SentLogout
-        {
-            get { lock (sync_) { return sentLogout_; } }
-            set { lock (sync_) { sentLogout_ = value; } }
-        }
-
-        public bool SentReset
-        {
-            get { lock (sync_) { return sentReset_; } }
-            set { lock (sync_) { sentReset_ = value; } }
-        }
-
-        public string LogoutReason
-        {
-            get { lock (sync_) { return logoutReason_; } }
-            set { lock (sync_) { logoutReason_ = value; } }
-        }
-
-        public int TestRequestCounter
-        {
-            get { lock (sync_) { return testRequestCounter_; } }
-            set { lock (sync_) { testRequestCounter_ = value; } }
-        }
+        public int TestRequestCounter { get; set; }
 
         public int HeartBtInt
         {
-            get { lock (sync_) { return heartBtInt_; } }
-            set { lock (sync_) { heartBtInt_ = value; heartBtIntAsMilliSecs_ = 1000 * value; } }
+            get => _heartBtInt;
+            set
+            {
+                _heartBtInt = value; 
+                HeartBtIntAsMilliSecs = 1000 * value;
+            }
         }
 
-        public int HeartBtIntAsMilliSecs
-        {
-            get { lock (sync_) { return heartBtIntAsMilliSecs_; } }
-        }
+        private int HeartBtIntAsMilliSecs { get; set; }
 
-        public DateTime LastReceivedTimeDT
-        {
-            get { lock (sync_) { return lastReceivedTimeDT_; } }
-            set { lock (sync_) { lastReceivedTimeDT_ = value; } }
-        }
+        public DateTime LastReceivedTimeDT { get; set; }
 
-
-        public DateTime LastSentTimeDT
-        {
-            get { lock (sync_) { return lastSentTimeDT_; } }
-            set { lock (sync_) { lastSentTimeDT_ = value; } }
-        }
+        public DateTime LastSentTimeDT { get; set; }
 
         public int LogonTimeout
         {
-            get { lock (sync_) { return logonTimeout_; } }
-            set { lock (sync_) { logonTimeout_ = value; logonTimeoutAsMilliSecs_ = 1000 * value; } }
-        }
+            get => _logonTimeout;
+            set
+            {
+                _logonTimeout = value;
+                LogonTimeoutAsMilliSecs = 1000 * value;
+            }
+        } 
 
-        public long LogonTimeoutAsMilliSecs
-        {
-            get { lock (sync_) { return logonTimeoutAsMilliSecs_; } }
-        }
+        private long LogonTimeoutAsMilliSecs { get; set; }
 
         public int LogoutTimeout
         {
-            get { lock (sync_) { return logoutTimeout_; } }
-            set { lock (sync_) { logoutTimeout_ = value; logoutTimeoutAsMilliSecs_ = 1000 * value; } }
+            get => _logoutTimeout;
+            set { _logoutTimeout = value; LogoutTimeoutAsMilliSecs = 1000 * value; }
         }
 
-        public long LogoutTimeoutAsMilliSecs
-        {
-            get { lock (sync_) { return logoutTimeoutAsMilliSecs_; } }
-        }
+        private long LogoutTimeoutAsMilliSecs { get; set; }
 
-        private Dictionary<int, Message> MsgQueue
-        {
-            get { lock (sync_) { return msgQueue; } }
-            set { lock (sync_) { msgQueue = value; } }
-        }
+        private Dictionary<int, Message> MsgQueue { get; } = new Dictionary<int, Message>();
 
         #endregion
 
         public SessionState(ILog log, int heartBtInt)
         {
-            log_ = log;
-            this.HeartBtInt = heartBtInt;
-            this.IsInitiator = (0 != heartBtInt);
-            lastReceivedTimeDT_ = DateTime.UtcNow;
-            lastSentTimeDT_ = DateTime.UtcNow;
+            Log = log;
+            HeartBtInt = heartBtInt;
+            IsInitiator = (0 != heartBtInt);
+            LogonTimeout = 10;
+            LogoutTimeout = 2;
+            LastSentTimeDT =  LastReceivedTimeDT = DateTime.UtcNow;
         }
 
         /// <summary>
@@ -197,14 +125,9 @@ namespace QuickFix
         /// <param name="lastReceivedTime">last received time</param>
         /// <param name="logonTimeout">number of milliseconds to wait for a Logon from the counterparty</param>
         /// <returns></returns>
-        public static bool LogonTimedOut(DateTime now, long logonTimeout, DateTime lastReceivedTime)
-        {
-            return (now.Subtract(lastReceivedTime).TotalMilliseconds) >= logonTimeout;
-        }
-        public bool LogonTimedOut()
-        {
-            return LogonTimedOut(DateTime.UtcNow, this.LogonTimeoutAsMilliSecs, this.LastReceivedTimeDT);
-        }
+        public static bool LogonTimedOut(DateTime now, long logonTimeout, DateTime lastReceivedTime) => (now.Subtract(lastReceivedTime).TotalMilliseconds) >= logonTimeout;
+
+        public bool LogonTimedOut() => LogonTimedOut(DateTime.UtcNow, this.LogonTimeoutAsMilliSecs, this.LastReceivedTimeDT);
 
         /// <summary>
         /// All time args are in milliseconds
@@ -215,13 +138,10 @@ namespace QuickFix
         /// <returns>true if timed out</returns>
         public static bool TimedOut(DateTime now, int heartBtIntMillis, DateTime lastReceivedTime)
         {
-            double elapsed = now.Subtract(lastReceivedTime).TotalMilliseconds;
+            var elapsed = now.Subtract(lastReceivedTime).TotalMilliseconds;
             return elapsed >= (2.4 * heartBtIntMillis);
         }
-        public bool TimedOut()
-        {
-            return TimedOut(DateTime.UtcNow, this.HeartBtIntAsMilliSecs, this.LastReceivedTimeDT);
-        }
+        public bool TimedOut() => TimedOut(DateTime.UtcNow, this.HeartBtIntAsMilliSecs, this.LastReceivedTimeDT);
 
         /// <summary>
         /// All time args are in milliseconds
@@ -231,14 +151,9 @@ namespace QuickFix
         /// <param name="logoutTimeout">number of milliseconds to wait for a Logout from the counterparty</param>
         /// <param name="lastSentTime">last sent time</param>
         /// <returns></returns>
-        public static bool LogoutTimedOut(DateTime now, bool sentLogout, long logoutTimeout, DateTime lastSentTime)
-        {
-            return sentLogout && ((now.Subtract(lastSentTime).TotalMilliseconds) >= logoutTimeout);
-        }
-        public bool LogoutTimedOut()
-        {
-            return LogoutTimedOut(DateTime.UtcNow, this.SentLogout, this.LogoutTimeoutAsMilliSecs, this.LastSentTimeDT);
-        }
+        public static bool LogoutTimedOut(DateTime now, bool sentLogout, long logoutTimeout, DateTime lastSentTime) => sentLogout && ((now.Subtract(lastSentTime).TotalMilliseconds) >= logoutTimeout);
+
+        public bool LogoutTimedOut() => LogoutTimedOut(DateTime.UtcNow, this.SentLogout, this.LogoutTimeoutAsMilliSecs, this.LastSentTimeDT);
 
         /// <summary>
         /// All time args are in milliseconds
@@ -250,13 +165,10 @@ namespace QuickFix
         /// <returns>true if test request is needed</returns>
         public static bool NeedTestRequest(DateTime now, int heartBtIntMillis, DateTime lastReceivedTime, int testRequestCounter)
         {
-            double elapsedMilliseconds = now.Subtract(lastReceivedTime).TotalMilliseconds;
+            var elapsedMilliseconds = now.Subtract(lastReceivedTime).TotalMilliseconds;
             return elapsedMilliseconds >= (1.2 * ((testRequestCounter + 1) * heartBtIntMillis));
         }
-        public bool NeedTestRequest()
-        {
-            return NeedTestRequest(DateTime.UtcNow, this.HeartBtIntAsMilliSecs, this.LastReceivedTimeDT, this.TestRequestCounter);
-        }
+        public bool NeedTestRequest() => NeedTestRequest(DateTime.UtcNow, this.HeartBtIntAsMilliSecs, this.LastReceivedTimeDT, this.TestRequestCounter);
 
         /// <summary>
         /// All time args are in milliseconds
@@ -268,13 +180,10 @@ namespace QuickFix
         /// <returns>true if heartbeat is needed</returns>
         public static bool NeedHeartbeat(DateTime now, int heartBtIntMillis, DateTime lastSentTime, int testRequestCounter)
         {
-            double elapsed = now.Subtract(lastSentTime).TotalMilliseconds;
+            var elapsed = now.Subtract(lastSentTime).TotalMilliseconds;
             return (elapsed >= Convert.ToDouble(heartBtIntMillis)) && (0 == testRequestCounter);
         }
-        public bool NeedHeartbeat()
-        {
-            return NeedHeartbeat(DateTime.UtcNow, this.HeartBtIntAsMilliSecs, this.LastSentTimeDT, this.TestRequestCounter);
-        }
+        public bool NeedHeartbeat() => NeedHeartbeat(DateTime.UtcNow, this.HeartBtIntAsMilliSecs, this.LastSentTimeDT, this.TestRequestCounter);
 
         /// <summary>
         /// All time args are in milliseconds
@@ -284,45 +193,26 @@ namespace QuickFix
         /// <param name="lastSentTime">last sent time</param>
         /// <param name="lastReceivedTime">last received time</param>
         /// <returns>true if within heartbeat interval</returns>
-        public static bool WithinHeartbeat(DateTime now, int heartBtIntMillis, DateTime lastSentTime, DateTime lastReceivedTime)
-        {
-            return ((now.Subtract(lastSentTime).TotalMilliseconds) < Convert.ToDouble(heartBtIntMillis))
-                && ((now.Subtract(lastReceivedTime).TotalMilliseconds) < Convert.ToDouble(heartBtIntMillis));
-        }
-        public bool WithinHeartbeat()
-        {
-            return WithinHeartbeat(DateTime.UtcNow, this.HeartBtIntAsMilliSecs, this.LastSentTimeDT, this.LastReceivedTimeDT);
-        }
+        public static bool WithinHeartbeat(DateTime now, int heartBtIntMillis, DateTime lastSentTime, DateTime lastReceivedTime) =>
+            ((now.Subtract(lastSentTime).TotalMilliseconds) < Convert.ToDouble(heartBtIntMillis))
+            && ((now.Subtract(lastReceivedTime).TotalMilliseconds) < Convert.ToDouble(heartBtIntMillis));
 
-        public ResendRange GetResendRange()
-        {
-            return resendRange_;
-        }
+        public bool WithinHeartbeat() => WithinHeartbeat(DateTime.UtcNow, this.HeartBtIntAsMilliSecs, this.LastSentTimeDT, this.LastReceivedTimeDT);
 
-        public void Get(int begSeqNo, int endSeqNo, List<string> messages)
-        {
-            lock (sync_)
-            {
-              MessageStore.Get(begSeqNo, endSeqNo, messages);
-            }
-        }
+        public ResendRange GetResendRange() => _resendRange;
 
-        public void SetResendRange(int begin, int end)
-        {
-            SetResendRange(begin, end, -1);
-        }
+        public void Get(int begSeqNo, int endSeqNo, List<string> messages) => MessageStore.Get(begSeqNo, endSeqNo, messages);
+
+        public void SetResendRange(int begin, int end) => SetResendRange(begin, end, -1);
 
         public void SetResendRange(int begin, int end, int chunkEnd)
         {
-            resendRange_.BeginSeqNo = begin;
-            resendRange_.EndSeqNo = end;
-            resendRange_.ChunkEndSeqNo = chunkEnd == -1 ? end : chunkEnd;
+            _resendRange.BeginSeqNo = begin;
+            _resendRange.EndSeqNo = end;
+            _resendRange.ChunkEndSeqNo = chunkEnd == -1 ? end : chunkEnd;
         }
 
-        public bool ResendRequested()
-        {
-            return !(resendRange_.BeginSeqNo == 0 && resendRange_.EndSeqNo == 0);
-        }
+        public bool ResendRequested() => !(_resendRange.BeginSeqNo == 0 && _resendRange.EndSeqNo == 0);
 
         public void Queue(int msgSeqNum, Message msg)
         {
@@ -381,70 +271,39 @@ namespace QuickFix
 
         #region MessageStore-manipulating Members
 
-        public bool Set(int msgSeqNum, string msg)
-        {
-            lock (sync_) { return this.MessageStore.Set(msgSeqNum, msg); }
-        }
+        public bool Set(int msgSeqNum, string msg) => MessageStore.Set(msgSeqNum, msg);
 
-        public int GetNextSenderMsgSeqNum()
-        {
-            lock (sync_) { return this.MessageStore.GetNextSenderMsgSeqNum(); }
-        }
+        public int GetNextSenderMsgSeqNum() => MessageStore.GetNextSenderMsgSeqNum();
 
-        public int GetNextTargetMsgSeqNum()
-        {
-            lock (sync_) { return this.MessageStore.GetNextTargetMsgSeqNum(); }
-        }
+        public int GetNextTargetMsgSeqNum() => this.MessageStore.GetNextTargetMsgSeqNum();
 
-        public void SetNextSenderMsgSeqNum(int value)
-        {
-            lock (sync_) { this.MessageStore.SetNextSenderMsgSeqNum(value); }
-        }
+        public void SetNextSenderMsgSeqNum(int value) => MessageStore.SetNextSenderMsgSeqNum(value);
 
-        public void SetNextTargetMsgSeqNum(int value)
-        {
-            lock (sync_) { this.MessageStore.SetNextTargetMsgSeqNum(value); }
-        }
+        public void SetNextTargetMsgSeqNum(int value) => MessageStore.SetNextTargetMsgSeqNum(value);
 
-        public void IncrNextSenderMsgSeqNum()
-        {
-            lock (sync_) { this.MessageStore.IncrNextSenderMsgSeqNum(); }
-        }
+        public void IncrNextSenderMsgSeqNum() => MessageStore.IncrNextSenderMsgSeqNum();
 
-        public void IncrNextTargetMsgSeqNum()
-        {
-            lock (sync_) { this.MessageStore.IncrNextTargetMsgSeqNum(); }
-        }
+        public void IncrNextTargetMsgSeqNum() => MessageStore.IncrNextTargetMsgSeqNum();
 
         public System.DateTime? CreationTime => MessageStore.CreationTime;
 
         [Obsolete("Use Reset(reason) instead.")]
-        public void Reset()
-        {
-            this.Reset("(unspecified reason)");
-        }
-        
+        public void Reset() => Reset("(unspecified reason)");
+
         public void Reset(string reason)
         {
-            lock (sync_)
-            {
-                this.MessageStore.Reset();
-                this.Log.OnEvent("Session reset: " + reason);
-            }
+            this.MessageStore.Reset();
+            this.Log.OnEvent("Session reset: " + reason);
         }
 
-        public void Refresh()
-        {
-            lock (sync_) { this.MessageStore.Refresh(); }
-        }
+        public void Refresh() => MessageStore.Refresh();
 
         #endregion
 
         public void Dispose()
         {
-            if (log_ != null) { log_.Dispose(); }
-            if (MessageStore != null) { MessageStore.Dispose(); }
+            Log?.Dispose();
+            MessageStore?.Dispose();
         }
     }
 }
-
