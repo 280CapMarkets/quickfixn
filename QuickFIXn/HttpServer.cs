@@ -193,7 +193,7 @@ namespace Acceptor
                 if (Convert.ToInt16(request.QueryString["confirm"]) != 0)
                 {
                     confirm = true;
-                    sessionDetails.Refresh();
+                    sessionDetails.Refresh(CancellationToken.None).Wait();
                     url = RemoveQueryStringByKey(urlOriginalString, "confirm");
                 }
             }
@@ -227,7 +227,7 @@ namespace Acceptor
                     foreach (SessionID session in _sessionSettings.GetSessions())
                     {
                         Session sessionDetails = Session.LookupSession(session);
-                        sessionDetails.Refresh();
+                        sessionDetails.Refresh(CancellationToken.None).Wait();
                     }
                 }
             }

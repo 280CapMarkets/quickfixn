@@ -485,7 +485,7 @@ namespace UnitTests
             for (int msgSeqNum = gapEnds[0]; msgSeqNum < gapStarts[1]; ++msgSeqNum)
             {
                 order.Header.SetField(new QuickFix.Fields.MsgSeqNum(msgSeqNum));
-                session.Send(order);
+                session.Send(order, CancellationToken.None).Wait();
                 ++orderCount;
             } //seq 4, next is 5
 
@@ -497,7 +497,7 @@ namespace UnitTests
             for (int msgSeqNum = gapEnds[1]; msgSeqNum < gapStarts[2]; ++msgSeqNum)
             {
                 order.Header.SetField(new QuickFix.Fields.MsgSeqNum(msgSeqNum));
-                session.Send(order);
+                session.Send(order, CancellationToken.None).Wait();
                 ++orderCount;
             } //seq 10, next is 11
 
@@ -532,7 +532,7 @@ namespace UnitTests
 
             reject.Header.SetField(new QuickFix.Fields.TargetCompID(sessionID.TargetCompID));
             reject.Header.SetField(new QuickFix.Fields.SenderCompID(sessionID.SenderCompID));
-            session.Send(reject);
+            session.Send(reject, CancellationToken.None).Wait();
 
             responder.msgLookup.Clear();
 
@@ -689,7 +689,7 @@ namespace UnitTests
             order.Header.SetField(new QuickFix.Fields.TargetCompID(sessionID.SenderCompID));
             order.Header.SetField(new QuickFix.Fields.SenderCompID(sessionID.TargetCompID));
             order.Header.SetField(new QuickFix.Fields.MsgSeqNum(seqNum++));
-            session.Send(order);
+            session.Send(order, CancellationToken.None).Wait();
 
             msg = responder.msgLookup[QuickFix.Fields.MsgType.NEW_ORDER_D].Last();
             lastSeqNumProcessed = msg.Header.GetInt(QuickFix.Fields.Tags.LastMsgSeqNumProcessed);
@@ -789,7 +789,7 @@ namespace UnitTests
             order.Header.SetField(new QuickFix.Fields.SenderCompID(sessionID.TargetCompID));
             order.Header.SetField(new QuickFix.Fields.MsgSeqNum(seqNum++));
             // This will generate resend requests
-            session.Send(order);
+            session.Send(order, CancellationToken.None).Wait();
 
             Assert.That(responder.msgLookup[QuickFix.Fields.MsgType.NEWORDERSINGLE].Count == 1);
 
@@ -904,7 +904,7 @@ namespace UnitTests
                  new QuickFix.Fields.OrdType(QuickFix.Fields.OrdType.LIMIT));
 
             application.doNotSendException = new QuickFix.DoNotSend();
-            session.Send(order);
+            session.Send(order, CancellationToken.None).Wait();
             Assert.False(SENT_NOS());
         }
 
@@ -920,7 +920,7 @@ namespace UnitTests
                  new QuickFix.Fields.TransactTime(),
                  new QuickFix.Fields.OrdType(QuickFix.Fields.OrdType.LIMIT));
 
-            session.Send(order);
+            session.Send(order, CancellationToken.None).Wait();
             Assert.True(SENT_NOS());
 
             responder.msgLookup.Remove(QuickFix.Fields.MsgType.NEWORDERSINGLE);

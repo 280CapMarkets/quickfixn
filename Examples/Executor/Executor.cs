@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-
+using System.Threading;
 using QuickFix;
 using QuickFix.Fields;
 using QuickFix.Session;
@@ -80,7 +80,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(exReport, s);
+                Session.SendToTarget(exReport, s, CancellationToken.None).Wait();
             }
             catch (SessionNotFound ex)
             {
@@ -135,7 +135,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(exReport, s);
+                Session.SendToTarget(exReport, s, CancellationToken.None).Wait();
             }
             catch (SessionNotFound ex)
             {
@@ -190,7 +190,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(exReport, s);
+                Session.SendToTarget(exReport, s, CancellationToken.None).Wait();
             }
             catch (SessionNotFound ex)
             {
@@ -245,7 +245,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(exReport, s);
+                Session.SendToTarget(exReport, s, CancellationToken.None).Wait();
             }
             catch (SessionNotFound ex)
             {
@@ -300,7 +300,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(exReport, s);
+                Session.SendToTarget(exReport, s, CancellationToken.None).Wait();
             }
             catch (SessionNotFound ex)
             {
@@ -354,7 +354,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(exReport, s);
+                Session.SendToTarget(exReport, s, CancellationToken.None).Wait();
             }
             catch (SessionNotFound ex)
             {
@@ -383,7 +383,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(ocj, s);
+                Session.SendToTarget(ocj, s, CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {
@@ -401,7 +401,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(ocj, s);
+                Session.SendToTarget(ocj, s, CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {
@@ -419,7 +419,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(ocj, s);
+                Session.SendToTarget(ocj, s, CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {
@@ -437,7 +437,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(ocj, s);
+                Session.SendToTarget(ocj, s, CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {
@@ -455,7 +455,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(ocj, s);
+                Session.SendToTarget(ocj, s, CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {
@@ -473,7 +473,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(ocj, s);
+                Session.SendToTarget(ocj, s, CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {
@@ -492,7 +492,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(ocj, s);
+                Session.SendToTarget(ocj, s, CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {
@@ -510,7 +510,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(ocj, s);
+                Session.SendToTarget(ocj, s, CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {
@@ -528,7 +528,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(ocj, s);
+                Session.SendToTarget(ocj, s, CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {
@@ -546,7 +546,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(ocj, s);
+                Session.SendToTarget(ocj, s, CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {
@@ -564,7 +564,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(ocj, s);
+                Session.SendToTarget(ocj, s, CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {
@@ -582,7 +582,7 @@ namespace Executor
 
             try
             {
-                Session.SendToTarget(ocj, s);
+                Session.SendToTarget(ocj, s, CancellationToken.None).Wait();
             }
             catch (Exception ex)
             {

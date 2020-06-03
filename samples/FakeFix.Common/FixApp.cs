@@ -52,8 +52,7 @@ namespace FakeFix.Common
             if (_messageFactoryFunc == null || _sendingTasks.TryGetValue(sessionId.ToString(), out var sendingTask)) return;
 
             var session = Session.LookupSession(sessionId);
-            sendingTask = Task.Factory.StartNew(() => SendingMessageWorker(session));
-            _sendingTasks.Add(sessionId.ToString(), sendingTask);
+            _sendingTasks.Add(sessionId.ToString(), SendingMessageWorker(session, _cancellationTokenSource.Token));
         }
 
         public Task WhenStopped() => Task.WhenAll(_sendingTasks.Values.ToArray());
@@ -64,12 +63,13 @@ namespace FakeFix.Common
                 FixDiagnosticSource.Write($"{ListenerName}.{name}", value);
         }
 
-        private void SendingMessageWorker(Session session)
+        private async Task SendingMessageWorker(Session session, CancellationToken cancellationToken)
         {
+            await Task.Yield();
             var sessionId = session.SessionID.ToString();
-            while (!_cancellationTokenSource.Token.IsCancellationRequested && session.GetDetails(_cancellationTokenSource.Token).GetAwaiter().GetResult().IsLoggedOn)
+            while (!cancellationToken.IsCancellationRequested &&  (await session.GetDetails(cancellationToken)).IsLoggedOn)
             {
-                session.Send(_messageFactoryFunc(sessionId));
+                await session.Send(_messageFactoryFunc(sessionId), cancellationToken);
             }
         }
 

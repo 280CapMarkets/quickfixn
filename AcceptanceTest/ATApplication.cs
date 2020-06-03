@@ -95,7 +95,7 @@ namespace AcceptanceTest
         protected void Echo(Message message, SessionID sessionID)
         {
             Message echo = new Message(message);
-            Session.SendToTarget(echo, sessionID);
+            Session.SendToTarget(echo, sessionID, CancellationToken.None).Wait();
         }
 
         protected void ProcessNOS(Message message, SessionID sessionID)
@@ -111,7 +111,7 @@ namespace AcceptanceTest
                 return;
             clOrdIDs_.Add(pair);
 
-            Session.SendToTarget(echo, sessionID);
+            Session.SendToTarget(echo, sessionID, CancellationToken.None).Wait();
         }
 
 

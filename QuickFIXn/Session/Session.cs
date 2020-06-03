@@ -360,25 +360,27 @@ namespace QuickFix.Session
         /// </summary>
         /// <param name="message">FIX message</param>
         /// <param name="sessionID">target SessionID</param>
+        /// <param name="cancellationToken"></param>
         /// <returns>true if send was successful, false otherwise</returns>
-        public static bool SendToTarget(Message message, SessionID sessionID)
+        public static Task<bool> SendToTarget(Message message, SessionID sessionID, CancellationToken cancellationToken)
         {
             message.SetSessionID(sessionID);
             Session session = Session.LookupSession(sessionID);
             if (null == session)
                 throw new SessionNotFound(sessionID);
-            return session.Send(message);
+            return session.Send(message, cancellationToken);
         }
 
         /// <summary>
         /// Send to session indicated by header fields in message
         /// </summary>
         /// <param name="message"></param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public static bool SendToTarget(Message message)
+        public static Task<bool> SendToTarget(Message message, CancellationToken cancellationToken)
         {
             SessionID sessionID = message.GetSessionID(message);
-            return SendToTarget(message, sessionID);
+            return SendToTarget(message, sessionID, cancellationToken);
         }
 
         #endregion
@@ -402,12 +404,16 @@ namespace QuickFix.Session
         /// Sends a message via the session indicated by the header fields
         /// </summary>
         /// <param name="message">message to send</param>
+        /// <param name="cancellationToken"></param>
         /// <returns>true if was sent successfully</returns>
-        public virtual bool Send(Message message)
+        public virtual async Task<bool> Send(Message message, CancellationToken cancellationToken)
         {
-            message.Header.RemoveField(Fields.Tags.PossDupFlag);
-            message.Header.RemoveField(Fields.Tags.OrigSendingTime);
-            return SendRaw(message, 0);
+            using (await _awaitableCriticalSection.EnterAsync(cancellationToken))
+            {
+                message.Header.RemoveField(Fields.Tags.PossDupFlag);
+                message.Header.RemoveField(Fields.Tags.OrigSendingTime);
+                return SendRaw(message, 0);
+            }
         }
 
         /// <summary>
@@ -776,7 +782,7 @@ namespace QuickFix.Session
             if (!state_.IsInitiator && this.ResetOnLogon)
                 state_.Reset("ResetOnLogon");
             if (this.RefreshOnLogon)
-                Refresh();
+                InnerRefresh();
 
             if (! await Verify(logon, false, true, cancellationToken))
                 return;
@@ -881,7 +887,7 @@ namespace QuickFix.Session
                         else
                         {
 
-                            initializeResendFields(msg);
+                            InitializeResendFields(msg);
                             if(!ResendApproved(msg, SessionID)) 
                             {
                                 continue;
@@ -1011,7 +1017,7 @@ namespace QuickFix.Session
                 string senderCompID = msg.Header.GetString(Fields.Tags.SenderCompID);
                 string targetCompID = msg.Header.GetString(Fields.Tags.TargetCompID);
 
-                if (!IsCorrectCompID(senderCompID, targetCompID))
+                if (!IsCorrectCompId(senderCompID, targetCompID))
                 {
                     GenerateReject(msg, FixValues.SessionRejectReason.COMPID_PROBLEM);
                     GenerateLogout();
@@ -1085,9 +1091,10 @@ namespace QuickFix.Session
             }
         }
 
-        public void Refresh()
+        public async Task Refresh( CancellationToken cancellationToken)
         {
-            state_.Refresh();
+            using(await _awaitableCriticalSection.EnterAsync(cancellationToken))
+                InnerRefresh();
         }
 
         /// <summary>
@@ -1100,6 +1107,8 @@ namespace QuickFix.Session
             using(await _awaitableCriticalSection.EnterAsync(cancellationToken))
                 await Reset(loggedReason, null, cancellationToken);
         }
+
+        private void InnerRefresh() => state_.Refresh();
 
         /// <summary>
         /// Send a logout, disconnect, and reset session state
@@ -1115,7 +1124,7 @@ namespace QuickFix.Session
             state_.Reset(loggedReason);
         }
 
-        private void initializeResendFields(Message message)
+        private void InitializeResendFields(Message message)
         {
             FieldMap header = message.Header;
             System.DateTime sendingTime = header.GetDateTime(Fields.Tags.SendingTime);
@@ -1132,12 +1141,12 @@ namespace QuickFix.Session
                 && (state_.GetNextTargetMsgSeqNum() == 1);
         }
 
-        private bool IsCorrectCompID(string senderCompID, string targetCompID)
+        private bool IsCorrectCompId(string senderCompId, string targetCompId)
         {
             if (!this.CheckCompID)
                 return true;
-            return this.SessionID.SenderCompID.Equals(targetCompID)
-                && this.SessionID.TargetCompID.Equals(senderCompID);
+            return this.SessionID.SenderCompID.Equals(targetCompId)
+                && this.SessionID.TargetCompID.Equals(senderCompId);
         }
 
         /// FIXME
@@ -1313,7 +1322,7 @@ namespace QuickFix.Session
             if (this.SessionID.IsFIXT)
                 logon.SetField(new Fields.DefaultApplVerID(this.SenderDefaultApplVerID));
             if (this.RefreshOnLogon)
-                Refresh();
+                InnerRefresh();
             if (this.ResetOnLogon)
                 state_.Reset("ResetOnLogon");
             if (ShouldSendReset())
@@ -1416,24 +1425,8 @@ namespace QuickFix.Session
             InitializeHeader(heartbeat);
             return SendRaw(heartbeat, 0);
         }
-
-        private bool GenerateHeartbeat(Message testRequest)
-        {
-            Message heartbeat = msgFactory_.Create(this.SessionID.BeginString, Fields.MsgType.HEARTBEAT);
-            InitializeHeader(heartbeat);
-            try
-            {
-                heartbeat.SetField(new Fields.TestReqID(testRequest.GetString(Fields.Tags.TestReqID)));
-                if (this.EnableLastMsgSeqNumProcessed)
-                {
-                    heartbeat.Header.SetField(new Fields.LastMsgSeqNumProcessed(testRequest.Header.GetInt(Tags.MsgSeqNum)));
-                }
-            }
-            catch (FieldNotFoundException)
-            { }
-            return SendRaw(heartbeat, 0);
-        }
-
+        
+       
 
         private bool GenerateReject(MessageBuilder msgBuilder, FixValues.SessionRejectReason reason)
         {
@@ -1741,9 +1734,6 @@ namespace QuickFix.Session
             _awaitableCriticalSection.Dispose();
         }
 
-        public bool Disposed
-        {
-            get { return disposed_; }
-        }
+        public bool Disposed => disposed_;
     }
 }

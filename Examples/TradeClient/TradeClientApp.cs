@@ -128,7 +128,7 @@ namespace TradeClient
         private void SendMessage(Message m)
         {
             if (_session != null)
-                _session.Send(m);
+                _session.Send(m, CancellationToken.None).Wait();
             else
             {
                 // This probably won't ever happen.
