@@ -138,15 +138,13 @@ namespace QuickFix
             if (IsStopped)
                 return;
 
-            lock (sync_)
-            {
-                var connectedSessions = _sessions.Values.Where(s => s.ConnectionState.IsConnected).ToArray();
+            var connectedSessions = _sessions.Values.Where(s => s.ConnectionState.IsConnected).ToArray();
 
-                foreach (var session in connectedSessions)
-                {
-                    if (!session.IsEnabled) continue;
-                    session.Logout();
-                }
+            foreach (var session in connectedSessions)
+            {
+                var sessionDetails = await session.GetDetails(cancellationToken);
+                if (!sessionDetails.IsEnabled) continue;
+                session.Logout();
             }
 
             if (!force)
@@ -236,9 +234,10 @@ namespace QuickFix
             var sessions =  _sessions.Values.Where(s => s.ConnectionState.IsDisconnected).ToArray();
             foreach (var session in sessions)
             {
-                // TODO: should be revised why we store all session in Session object
+                // TODO: nmandzyk should be revised why we store all session in Session object
                 //Session session = Session.LookupSession(sessionID);
-                if (!session.IsEnabled) continue;
+                var sessionDetails = await session.GetDetails(cancellationToken);
+                if (!sessionDetails.IsEnabled) continue;
 
                 if (session.IsNewSession)
                     await session.Reset("New session", cancellationToken);

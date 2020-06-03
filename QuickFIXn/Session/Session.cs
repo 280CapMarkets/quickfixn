@@ -42,10 +42,11 @@ namespace QuickFix.Session
         // state
         public IMessageStore MessageStore => state_.MessageStore;
 
-        public ILog Log { get { return state_.Log; } }
+        public ILog Log => state_.Log;
+
         //public bool IsInitiator { get { return state_.IsInitiator; } }
         //public bool IsAcceptor { get { return !state_.IsInitiator; } }
-        public bool IsEnabled { get { return state_.IsEnabled; } }
+        private bool IsEnabled => state_.IsEnabled;
         public bool IsSessionTime => schedule_.IsSessionTime(DateTime.UtcNow);
         private bool IsLoggedOn => state_.ReceivedLogon && state_.SentLogon;
 
@@ -60,11 +61,6 @@ namespace QuickFix.Session
         }
 
         /// <summary>
-        /// Session setting for heartbeat interval (in seconds)
-        /// </summary>
-        public int HeartBtInt { get { return state_.HeartBtInt; } }
-
-        /// <summary>
         /// Session setting for enabling message latency checks
         /// </summary>
         public bool CheckLatency { get; set; }
@@ -72,13 +68,13 @@ namespace QuickFix.Session
         /// <summary>
         /// Session setting for maximum message latency (in seconds)
         /// </summary>
-        public int MaxLatency { get; set; }
+        public int MaxLatency { get; private set; }
 
         /// <summary>
         /// Send a logout if counterparty times out and does not heartbeat
         /// in response to a TestRequeset. Defaults to false
         /// </summary>
-        public bool SendLogoutBeforeTimeoutDisconnect { get; set; }
+        public bool SendLogoutBeforeTimeoutDisconnect { get; private set; }
 
         /// <summary>
         /// Gets or sets the next expected outgoing sequence number
@@ -116,7 +112,7 @@ namespace QuickFix.Session
         public int LogonTimeout
         {
             get { return state_.LogonTimeout; }
-            set { state_.LogonTimeout = value; }
+            private set { state_.LogonTimeout = value; }
         }
 
         /// <summary>
@@ -125,7 +121,7 @@ namespace QuickFix.Session
         public int LogoutTimeout
         {
             get { return state_.LogoutTimeout; }
-            set { state_.LogoutTimeout = value; }
+            private set { state_.LogoutTimeout = value; }
         }
 
         // unsynchronized properties
@@ -139,27 +135,27 @@ namespace QuickFix.Session
         /// Determines if session state should be restored from persistance
         /// layer when logging on. Useful for creating hot failover sessions.
         /// </summary>
-        public bool RefreshOnLogon { get; set; }
+        public bool RefreshOnLogon { get; private set; }
 
         /// <summary>
         /// Reset sequence numbers on logon request
         /// </summary>
-        public bool ResetOnLogon { get; set; }
+        public bool ResetOnLogon { get; private set; }
 
         /// <summary>
         /// Reset sequence numbers to 1 after a normal logout
         /// </summary>
-        public bool ResetOnLogout { get; set; }
+        public bool ResetOnLogout { get; private set; }
 
         /// <summary>
         /// Reset sequence numbers to 1 after abnormal termination
         /// </summary>
-        public bool ResetOnDisconnect { get; set; }
+        public bool ResetOnDisconnect { get; private set; }
 
         /// <summary>
         /// Whether to send redundant resend requests
         /// </summary>
-        public bool SendRedundantResendRequests { get; set; }
+        public bool SendRedundantResendRequests { get; private set; }
 
         /// <summary>
         /// Whether to resend session level rejects (msg type '3') when servicing a resend request
@@ -174,7 +170,7 @@ namespace QuickFix.Session
         /// <summary>
         /// Validates Comp IDs for each message
         /// </summary>
-        public bool CheckCompID { get; set; }
+        public bool CheckCompID { get; private set; }
 
         /// <summary>
         /// Determines if milliseconds should be added to timestamps.
@@ -186,7 +182,7 @@ namespace QuickFix.Session
             {
                 return TimeStampPrecision == TimeStampPrecision.Millisecond;
             }
-            set
+            private set
             {
                 TimeStampPrecision = value ? TimeStampPrecision.Millisecond : TimeStampPrecision.Second;
             }
@@ -252,7 +248,7 @@ namespace QuickFix.Session
 
         public Session(
             IApplication app, IMessageStoreFactory storeFactory, SessionID sessID, DataDictionaryProvider dataDictProvider,
-            SessionSchedule sessionSchedule, int heartBtInt, ILogFactory logFactory, IMessageFactory msgFactory, string senderDefaultApplVerID, CancellationToken cancellationToken)
+            SessionSchedule sessionSchedule, SessionConfiguration configuration, ILogFactory logFactory, IMessageFactory msgFactory, string senderDefaultApplVerID, CancellationToken cancellationToken)
         {
             this._awaitableCriticalSection = new AwaitableCriticalSection(true);
             this.Application = app;
@@ -276,27 +272,12 @@ namespace QuickFix.Session
             else
                 log = new NullLog();
 
-            state_ = new SessionState(log, heartBtInt)
+            state_ = new SessionState(log, configuration.HeartBtInt)
             {
                 MessageStore = storeFactory.Create(sessID)
             };
-
-            // Configuration defaults.
-            // Will be overridden by the SessionFactory with values in the user's configuration.
-            this.PersistMessages = true;
-            this.ResetOnDisconnect = false;
-            this.SendRedundantResendRequests = false;
-            this.ResendSessionLevelRejects = false;
-            this.ValidateLengthAndChecksum = true;
-            this.CheckCompID = true;
-            this.TimeStampPrecision = TimeStampPrecision.Millisecond;
-            this.EnableLastMsgSeqNumProcessed = false;
-            this.MaxMessagesInResendRequest = 0;
-            this.SendLogoutBeforeTimeoutDisconnect = false;
-            this.IgnorePossDupResendRequests = false;
-            this.RequiresOrigSendingTime = true;
-            this.CheckLatency = true;
-            this.MaxLatency = 120;
+            InnerInitialize(configuration);
+            
 
             if (!IsSessionTime)
                 Reset("Out of SessionTime (Session construction)", cancellationToken).GetAwaiter().GetResult();
@@ -311,6 +292,39 @@ namespace QuickFix.Session
             this.Application.OnCreate(this.SessionID);
             this.Log.OnEvent("Created session");
         }
+
+        public async Task Initialize(SessionConfiguration configuration, CancellationToken cancellationToken)
+        {
+            using (await _awaitableCriticalSection.EnterAsync(cancellationToken))
+            {
+                InnerInitialize(configuration);
+            }
+        } 
+
+        private void InnerInitialize(SessionConfiguration configuration)
+        {
+            if (configuration.CheckCompId.HasValue) CheckCompID = configuration.CheckCompId.Value;
+            if (configuration.CheckLatency.HasValue) CheckLatency = configuration.CheckLatency.Value;
+            if (configuration.MaxLatency.HasValue) MaxLatency = configuration.MaxLatency.Value;
+            if (configuration.LogonTimeout.HasValue) LogonTimeout = configuration.LogonTimeout.Value;
+            if (configuration.LogoutTimeout.HasValue) LogoutTimeout = configuration.LogoutTimeout.Value;
+            if (configuration.ResetOnLogon.HasValue) ResetOnLogon = configuration.ResetOnLogon.Value;
+            if (configuration.ResetOnLogout.HasValue) ResetOnLogout = configuration.ResetOnLogout.Value;
+            if (configuration.ResetOnDisconnect.HasValue) ResetOnDisconnect = configuration.ResetOnDisconnect.Value;
+            if (configuration.RefreshOnLogon.HasValue) RefreshOnLogon = configuration.RefreshOnLogon.Value;
+            if (configuration.PersistMessages.HasValue) PersistMessages = configuration.PersistMessages.Value;
+            if (configuration.MillisecondsInTimeStamp.HasValue) MillisecondsInTimeStamp = configuration.MillisecondsInTimeStamp.Value;
+            if (configuration.TimeStampPrecision.HasValue) TimeStampPrecision = configuration.TimeStampPrecision.Value;
+            if (configuration.EnableLastMsgSeqNumProcessed.HasValue) EnableLastMsgSeqNumProcessed = configuration.EnableLastMsgSeqNumProcessed.Value;
+            if (configuration.MaxMessagesInResendRequest.HasValue) MaxMessagesInResendRequest = configuration.MaxMessagesInResendRequest.Value;
+            if (configuration.SendLogoutBeforeTimeoutDisconnect.HasValue) SendLogoutBeforeTimeoutDisconnect = configuration.SendLogoutBeforeTimeoutDisconnect.Value;
+            if (configuration.IgnorePossDupResendRequests.HasValue) IgnorePossDupResendRequests = configuration.IgnorePossDupResendRequests.Value;
+            if (configuration.ValidateLengthAndChecksum.HasValue) ValidateLengthAndChecksum = configuration.ValidateLengthAndChecksum.Value;
+            if (configuration.RequiresOrigSendingTime.HasValue) RequiresOrigSendingTime = configuration.RequiresOrigSendingTime.Value;
+            if (configuration.SendRedundantResendRequests.HasValue) SendRedundantResendRequests = configuration.SendRedundantResendRequests.Value;
+            if (configuration.ResendSessionLevelRejects.HasValue) ResendSessionLevelRejects = configuration.ResendSessionLevelRejects.Value;
+        }
+
 
         #region Static Methods
 
@@ -375,7 +389,9 @@ namespace QuickFix.Session
                 return new SessionDetails
                 {
                     IsInitiator = state_.IsInitiator,
-                    IsLoggedOn = IsLoggedOn
+                    IsLoggedOn = IsLoggedOn,
+                    HeartBtInt =  state_.HeartBtInt,
+                    IsEnabled = state_.IsEnabled
                 };
             }
         }

@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using System.Threading;
+using QuickFix.Fields.Converters;
 using QuickFix.Session;
 
 namespace UnitTests
@@ -193,18 +194,38 @@ namespace UnitTests
             config.SetString(QuickFix.SessionSettings.END_TIME, "00:00:00");
             settings.TrySet(sessionID, config);
 
+            var sessionConfiguration = new SessionConfiguration
+            {
+                HeartBtInt = 0,
+                PersistMessages = true,
+                CheckLatency = false,
+                ValidateLengthAndChecksum = true,
+                CheckCompId = true,
+                TimeStampPrecision = TimeStampPrecision.Millisecond,
+                RequiresOrigSendingTime = true,
+                MaxLatency =  120
+            };
+
             session = new Session(application, new QuickFix.MemoryStoreFactory(), sessionID, 
-                new QuickFix.DataDictionaryProvider(),new QuickFix.SessionSchedule(config), 0, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
+                new QuickFix.DataDictionaryProvider(),new QuickFix.SessionSchedule(config), sessionConfiguration, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
             session.SetResponder(responder, CancellationToken.None).GetAwaiter().GetResult();
-            session.CheckLatency = false;
 
             // must be set for an initiator
-            int heartBeatInterval = 10;
+            var sessionConfiguration1 = new SessionConfiguration
+            {
+                HeartBtInt = 10,
+                PersistMessages = true,
+                CheckLatency = false,
+                ValidateLengthAndChecksum = true,
+                CheckCompId = true,
+                TimeStampPrecision = TimeStampPrecision.Millisecond,
+                RequiresOrigSendingTime = true,
+                MaxLatency = 120
+            };
 
             session2 = new Session(application, new QuickFix.MemoryStoreFactory(), new QuickFix.SessionID("FIX.4.2", "OTHER_SENDER", "OTHER_TARGET"),
-                new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(config), heartBeatInterval, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
+                new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(config), sessionConfiguration1, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
             session2.SetResponder(responder, CancellationToken.None).GetAwaiter().GetResult();
-            session2.CheckLatency = false;
 
             seqNum = 1;
         }
@@ -488,7 +509,7 @@ namespace UnitTests
             responder.msgLookup.Clear();
             SendResendRequest(1, 100);
 
-            Assert.AreEqual(responder.GetCount(QuickFix.Fields.MsgType.NEWORDERSINGLE), orderCount);
+            Assert.AreEqual(orderCount, responder.GetCount(QuickFix.Fields.MsgType.NEWORDERSINGLE));
             Assert.AreEqual(responder.GetCount(QuickFix.Fields.MsgType.SEQUENCE_RESET), gapStarts.Length);
 
             int count = -1;
@@ -915,7 +936,7 @@ namespace UnitTests
         {
             var mockApp = new MockApplicationExt();
             session = new Session(mockApp, new QuickFix.MemoryStoreFactory(), sessionID,
-                new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(config), 0, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
+                new QuickFix.DataDictionaryProvider(), new QuickFix.SessionSchedule(config), new SessionConfiguration { HeartBtInt = 0}, new QuickFix.ScreenLogFactory(settings), new QuickFix.DefaultMessageFactory(), "blah", CancellationToken.None);
             session.SetResponder(responder, CancellationToken.None).GetAwaiter().GetResult();
             session.CheckLatency = false;
 

@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading;
+using QuickFix.Fields.Converters;
+using QuickFix.Session;
 
 namespace QuickFix
 {
@@ -82,74 +84,67 @@ namespace QuickFix
                 else
                     ProcessFixDataDictionary(sessionID, settings, dd);
             }
-
-            int heartBtInt = 0;
-            if ( connectionType == "initiator" )
-            {
-                heartBtInt = System.Convert.ToInt32(settings.GetLong( SessionSettings.HEARTBTINT ));
-                if ( heartBtInt <= 0 )
-                    throw new ConfigError( "Heartbeat must be greater than zero" );
-            }
+            
             string senderDefaultApplVerId = "";
             if(defaultApplVerID != null)
                 senderDefaultApplVerId = defaultApplVerID.Obj;
 
-            Session.Session session = new Session.Session(
+            var sessionConfiguration = CreateSessionConfiguration(settings, connectionType);
+
+            var session = new Session.Session(
                 application_,
                 messageStoreFactory_,
                 sessionID,
                 dd,
                 new SessionSchedule(settings),
-                heartBtInt,
+                sessionConfiguration,
                 logFactory_,
                 sessionMsgFactory,
                 senderDefaultApplVerId,
                 cancellationToken);
 
-            if (settings.Has(SessionSettings.SEND_REDUNDANT_RESENDREQUESTS))
-                session.SendRedundantResendRequests = settings.GetBool(SessionSettings.SEND_REDUNDANT_RESENDREQUESTS);
-            if (settings.Has(SessionSettings.RESEND_SESSION_LEVEL_REJECTS))
-                session.ResendSessionLevelRejects = settings.GetBool(SessionSettings.RESEND_SESSION_LEVEL_REJECTS);
+            return session;
+        }
+
+        private SessionConfiguration CreateSessionConfiguration(QuickFix.Dictionary settings, string connectionType)
+        {
+            var heartBtInt = 0;
+            if (connectionType == "initiator")
+            {
+                heartBtInt = System.Convert.ToInt32(settings.GetLong(SessionSettings.HEARTBTINT));
+                if (heartBtInt <= 0)
+                    throw new ConfigError("Heartbeat must be greater than zero");
+            }
+
             /* FIXME - implement optional settings
             if (settings.Has(SessionSettings.CHECK_COMPID))
                 session.SetCheckCompId(settings.GetBool(SessionSettings.CHECK_COMPID));
              */
-            if (settings.Has(SessionSettings.CHECK_LATENCY))
-                session.CheckLatency = settings.GetBool(SessionSettings.CHECK_LATENCY);
-            if (settings.Has(SessionSettings.MAX_LATENCY))
-                session.MaxLatency = settings.GetInt(SessionSettings.MAX_LATENCY);
-            if (settings.Has(SessionSettings.LOGON_TIMEOUT))
-                session.LogonTimeout = settings.GetInt(SessionSettings.LOGON_TIMEOUT);
-            if (settings.Has(SessionSettings.LOGOUT_TIMEOUT))
-                session.LogoutTimeout = settings.GetInt(SessionSettings.LOGOUT_TIMEOUT);
-            if (settings.Has(SessionSettings.RESET_ON_LOGON))
-                session.ResetOnLogon = settings.GetBool(SessionSettings.RESET_ON_LOGON);
-            if (settings.Has(SessionSettings.RESET_ON_LOGOUT))
-                session.ResetOnLogout = settings.GetBool(SessionSettings.RESET_ON_LOGOUT);
-            if (settings.Has(SessionSettings.RESET_ON_DISCONNECT))
-                session.ResetOnDisconnect = settings.GetBool(SessionSettings.RESET_ON_DISCONNECT);
-            if (settings.Has(SessionSettings.REFRESH_ON_LOGON))
-                session.RefreshOnLogon = settings.GetBool(SessionSettings.REFRESH_ON_LOGON);
-            if (settings.Has(SessionSettings.PERSIST_MESSAGES))
-                session.PersistMessages = settings.GetBool(SessionSettings.PERSIST_MESSAGES);
-            if (settings.Has(SessionSettings.MILLISECONDS_IN_TIMESTAMP))
-                session.MillisecondsInTimeStamp = settings.GetBool(SessionSettings.MILLISECONDS_IN_TIMESTAMP);
-            if( settings.Has( SessionSettings.TIMESTAMP_PRECISION ) )
-                session.TimeStampPrecision = settings.GetTimeStampPrecision( SessionSettings.TIMESTAMP_PRECISION );
-            if (settings.Has(SessionSettings.ENABLE_LAST_MSG_SEQ_NUM_PROCESSED))
-                session.EnableLastMsgSeqNumProcessed = settings.GetBool(SessionSettings.ENABLE_LAST_MSG_SEQ_NUM_PROCESSED);
-            if (settings.Has(SessionSettings.MAX_MESSAGES_IN_RESEND_REQUEST))
-                session.MaxMessagesInResendRequest = settings.GetInt(SessionSettings.MAX_MESSAGES_IN_RESEND_REQUEST);
-            if (settings.Has(SessionSettings.SEND_LOGOUT_BEFORE_TIMEOUT_DISCONNECT))
-                session.SendLogoutBeforeTimeoutDisconnect = settings.GetBool(SessionSettings.SEND_LOGOUT_BEFORE_TIMEOUT_DISCONNECT);
-            if (settings.Has(SessionSettings.IGNORE_POSSDUP_RESEND_REQUESTS))
-                session.IgnorePossDupResendRequests = settings.GetBool(SessionSettings.IGNORE_POSSDUP_RESEND_REQUESTS);
-            if (settings.Has(SessionSettings.VALIDATE_LENGTH_AND_CHECKSUM))
-                session.ValidateLengthAndChecksum = settings.GetBool(SessionSettings.VALIDATE_LENGTH_AND_CHECKSUM);
-            if (settings.Has(SessionSettings.RESETSEQUENCE_MESSAGE_REQUIRES_ORIGSENDINGTIME))
-                session.RequiresOrigSendingTime = settings.GetBool(SessionSettings.RESETSEQUENCE_MESSAGE_REQUIRES_ORIGSENDINGTIME);
-
-            return session;
+            var sessionConfiguration = new SessionConfiguration
+            {
+                HeartBtInt = heartBtInt,
+                CheckCompId = true,
+                CheckLatency = !settings.Has(SessionSettings.CHECK_LATENCY) || settings.GetBool(SessionSettings.CHECK_LATENCY),
+                MaxLatency = settings.Has(SessionSettings.MAX_LATENCY) ? settings.GetInt(SessionSettings.MAX_LATENCY) : 120,
+                LogonTimeout = settings.Has(SessionSettings.LOGON_TIMEOUT) ? settings.GetInt(SessionSettings.LOGON_TIMEOUT) : default,
+                LogoutTimeout = settings.Has(SessionSettings.LOGOUT_TIMEOUT) ? settings.GetInt(SessionSettings.LOGOUT_TIMEOUT) : default,
+                ResetOnLogon = settings.Has(SessionSettings.RESET_ON_LOGON) ? settings.GetBool(SessionSettings.RESET_ON_LOGON) : default,
+                ResetOnLogout = settings.Has(SessionSettings.RESET_ON_LOGOUT) ? settings.GetBool(SessionSettings.RESET_ON_LOGOUT) : default,
+                ResetOnDisconnect = settings.Has(SessionSettings.RESET_ON_DISCONNECT) && settings.GetBool(SessionSettings.RESET_ON_DISCONNECT),
+                RefreshOnLogon = settings.Has(SessionSettings.REFRESH_ON_LOGON) ? settings.GetBool(SessionSettings.REFRESH_ON_LOGON) : default,
+                PersistMessages = !settings.Has(SessionSettings.PERSIST_MESSAGES) || settings.GetBool(SessionSettings.PERSIST_MESSAGES),
+                MillisecondsInTimeStamp = settings.Has(SessionSettings.MILLISECONDS_IN_TIMESTAMP) ? settings.GetBool(SessionSettings.MILLISECONDS_IN_TIMESTAMP) : default,
+                TimeStampPrecision = settings.Has(SessionSettings.TIMESTAMP_PRECISION) ? settings.GetTimeStampPrecision(SessionSettings.TIMESTAMP_PRECISION) : TimeStampPrecision.Millisecond,
+                EnableLastMsgSeqNumProcessed = settings.Has(SessionSettings.ENABLE_LAST_MSG_SEQ_NUM_PROCESSED) && settings.GetBool(SessionSettings.ENABLE_LAST_MSG_SEQ_NUM_PROCESSED),
+                MaxMessagesInResendRequest = settings.Has(SessionSettings.MAX_MESSAGES_IN_RESEND_REQUEST) ? settings.GetInt(SessionSettings.MAX_MESSAGES_IN_RESEND_REQUEST) : 0,
+                SendLogoutBeforeTimeoutDisconnect = settings.Has(SessionSettings.SEND_LOGOUT_BEFORE_TIMEOUT_DISCONNECT) && settings.GetBool(SessionSettings.SEND_LOGOUT_BEFORE_TIMEOUT_DISCONNECT),
+                IgnorePossDupResendRequests = settings.Has(SessionSettings.IGNORE_POSSDUP_RESEND_REQUESTS) && settings.GetBool(SessionSettings.IGNORE_POSSDUP_RESEND_REQUESTS),
+                ValidateLengthAndChecksum = !settings.Has(SessionSettings.VALIDATE_LENGTH_AND_CHECKSUM) || settings.GetBool(SessionSettings.VALIDATE_LENGTH_AND_CHECKSUM),
+                RequiresOrigSendingTime = !settings.Has(SessionSettings.RESETSEQUENCE_MESSAGE_REQUIRES_ORIGSENDINGTIME) || settings.GetBool(SessionSettings.RESETSEQUENCE_MESSAGE_REQUIRES_ORIGSENDINGTIME),
+                SendRedundantResendRequests = settings.Has(SessionSettings.SEND_REDUNDANT_RESENDREQUESTS) && settings.GetBool(SessionSettings.SEND_REDUNDANT_RESENDREQUESTS),
+                ResendSessionLevelRejects = settings.Has(SessionSettings.RESEND_SESSION_LEVEL_REJECTS) && settings.GetBool(SessionSettings.RESEND_SESSION_LEVEL_REJECTS),
+            };
+            return sessionConfiguration;
         }
 
         private DataDictionary.DataDictionary createDataDictionary(SessionID sessionID, QuickFix.Dictionary settings, string settingsKey, string beginString)

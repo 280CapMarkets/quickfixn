@@ -353,7 +353,7 @@ namespace Acceptor
                     "<a href=\"session?BeginString={0}&SenderCompID={1}&TargetCompID={2}\">{0}:{1}->{2}</a>",
                     session.BeginString, session.SenderCompID, session.TargetCompID)));
                 sbHtmlPageBody.Append(AddCell(sDetails.IsInitiator ? "initiator" : "acceptor"));
-                sbHtmlPageBody.Append(AddCell(sessionDetails.IsEnabled ? "yes" : "no"));
+                sbHtmlPageBody.Append(AddCell(sDetails.IsEnabled ? "yes" : "no"));
                 sbHtmlPageBody.Append(AddCell(sessionDetails.IsSessionTime ? "yes" : "no"));
                 sbHtmlPageBody.Append(AddCell(sDetails.IsLoggedOn ? "yes" : "no"));
                 sbHtmlPageBody.Append(AddCell(sessionDetails.NextTargetMsgSeqNum.ToString()));
@@ -401,80 +401,84 @@ namespace Acceptor
                 url = RemoveQueryStringByKey(urlOriginalString, "Next Outgoing");
             }
 
+            var sessionConfiguration = new SessionConfiguration();
+
             if (request.QueryString["SendRedundantResendRequests"] != null)
             {
-                sessionDetails.SendRedundantResendRequests = Convert.ToBoolean(request.QueryString["SendRedundantResendRequests"]);
+                sessionConfiguration.SendRedundantResendRequests = Convert.ToBoolean(request.QueryString["SendRedundantResendRequests"]);
                 url = RemoveQueryStringByKey(urlOriginalString, "SendRedundantResendRequests");
             }
 
             if (request.QueryString["CheckCompId"] != null)
             {
-                sessionDetails.CheckCompID = Convert.ToBoolean(request.QueryString["CheckCompId"]);
+                sessionConfiguration.CheckCompId = Convert.ToBoolean(request.QueryString["CheckCompId"]);
                 url = RemoveQueryStringByKey(urlOriginalString, "CheckCompId");
             }
 
             if (request.QueryString["CheckLatency"] != null)
             {
-                sessionDetails.CheckLatency = Convert.ToBoolean(request.QueryString["CheckLatency"]);
+                sessionConfiguration.CheckLatency = Convert.ToBoolean(request.QueryString["CheckLatency"]);
                 url = RemoveQueryStringByKey(urlOriginalString, "CheckLatency");
             }
 
             if (request.QueryString["MaxLatency"] != null)
             {
                 int value = Convert.ToInt16(request.QueryString["MaxLatency"]);
-                sessionDetails.MaxLatency = value <= 0 ? 1 : value;
+                sessionConfiguration.MaxLatency = value <= 0 ? 1 : value;
                 url = RemoveQueryStringByKey(urlOriginalString, "MaxLatency");
             }
 
             if (request.QueryString["LogonTimeout"] != null)
             {
                 int value = Convert.ToInt16(request.QueryString["LogonTimeout"]);
-                sessionDetails.LogonTimeout = value <= 0 ? 1 : value;
+                sessionConfiguration.LogonTimeout = value <= 0 ? 1 : value;
                 url = RemoveQueryStringByKey(urlOriginalString, "LogonTimeout");
             }
 
             if (request.QueryString["LogoutTimeout"] != null)
             {
                 int value = Convert.ToInt16(request.QueryString["LogoutTimeout"]);
-                sessionDetails.LogoutTimeout = value <= 0 ? 1 : value;
+                sessionConfiguration.LogoutTimeout = value <= 0 ? 1 : value;
                 url = RemoveQueryStringByKey(urlOriginalString, "LogoutTimeout");
             }
 
             if (request.QueryString["ResetOnLogon"] != null)
             {
-                sessionDetails.ResetOnLogon = Convert.ToBoolean(request.QueryString["ResetOnLogon"]);
+                sessionConfiguration.ResetOnLogon = Convert.ToBoolean(request.QueryString["ResetOnLogon"]);
                 url = RemoveQueryStringByKey(urlOriginalString, "ResetOnLogon");
             }
 
             if (request.QueryString["ResetOnLogout"] != null)
             {
-                sessionDetails.ResetOnLogout = Convert.ToBoolean(request.QueryString["ResetOnLogout"]);
+                sessionConfiguration.ResetOnLogout = Convert.ToBoolean(request.QueryString["ResetOnLogout"]);
                 url = RemoveQueryStringByKey(urlOriginalString, "ResetOnLogout");
             }
 
             if (request.QueryString["ResetOnDisconnect"] != null)
             {
-                sessionDetails.ResetOnDisconnect = Convert.ToBoolean(request.QueryString["ResetOnDisconnect"]);
+                sessionConfiguration.ResetOnDisconnect = Convert.ToBoolean(request.QueryString["ResetOnDisconnect"]);
                 url = RemoveQueryStringByKey(urlOriginalString, "ResetOnDisconnect");
             }
 
             if (request.QueryString["RefreshOnLogon"] != null)
             {
-                sessionDetails.RefreshOnLogon = Convert.ToBoolean(request.QueryString["RefreshOnLogon"]);
+                sessionConfiguration.RefreshOnLogon = Convert.ToBoolean(request.QueryString["RefreshOnLogon"]);
                 url = RemoveQueryStringByKey(urlOriginalString, "RefreshOnLogon");
             }
 
             if (request.QueryString["MillisecondsInTimestamp"] != null)
             {
-                sessionDetails.MillisecondsInTimeStamp = Convert.ToBoolean(request.QueryString["MillisecondsInTimestamp"]);
+                sessionConfiguration.MillisecondsInTimeStamp = Convert.ToBoolean(request.QueryString["MillisecondsInTimestamp"]);
                 url = RemoveQueryStringByKey(urlOriginalString, "MillisecondsInTimestamp");
             }
 
             if (request.QueryString["PersistMessages"] != null)
             {
-                sessionDetails.PersistMessages = Convert.ToBoolean(request.QueryString["PersistMessages"]);
+                sessionConfiguration.PersistMessages = Convert.ToBoolean(request.QueryString["PersistMessages"]);
                 url = RemoveQueryStringByKey(urlOriginalString, "PersistMessages");
             }
+
+            sessionDetails.Initialize(sessionConfiguration, CancellationToken.None).GetAwaiter().GetResult();
 
             
             sbHtmlPageBody.AppendFormat(@"<CENTER>{0}</CENTER><HR/>", sessionId);
@@ -482,7 +486,7 @@ namespace Acceptor
 
             sbHtmlPageBody.Append("<table id=\"session_details\" style=\"border-width:1; padding:2; width:100%\">");
             
-            sbHtmlPageBody.Append(AddRow("Enabled", sessionDetails.IsEnabled, url));
+            sbHtmlPageBody.Append(AddRow("Enabled", sDetails.IsEnabled, url));
             sbHtmlPageBody.Append(AddRow("ConnectionType", sDetails.IsInitiator?"initiator": "acceptor"));
             sbHtmlPageBody.Append(AddRow("SessionTime", sessionDetails.IsSessionTime));
             sbHtmlPageBody.Append(AddRow("LoggedOn", sDetails.IsLoggedOn));

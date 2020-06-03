@@ -102,6 +102,7 @@ namespace UnitTests
             settings.SetString(SessionSettings.SEND_REDUNDANT_RESENDREQUESTS, "N");
             settings.SetString(SessionSettings.RESEND_SESSION_LEVEL_REJECTS, "N");
             settings.SetString(SessionSettings.MILLISECONDS_IN_TIMESTAMP, "N");
+            settings.SetString(SessionSettings.TIMESTAMP_PRECISION, "SECOND");
             session = factory.Create(sessionID, settings, CancellationToken.None);
 
             Assert.That(!session.SendRedundantResendRequests);

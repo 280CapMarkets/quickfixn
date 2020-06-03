@@ -70,11 +70,11 @@ namespace QuickFix
             }
             catch (MessageParseError e)
             {
-                HandleExceptionInternal(qfSession_, e);
+                await HandleExceptionInternal(qfSession_, e, cancellationToken);
             }
             catch (Exception e)
             {
-                HandleExceptionInternal(qfSession_, e);
+                await HandleExceptionInternal(qfSession_, e, cancellationToken);
                 throw e;
             }
         }
@@ -250,16 +250,14 @@ namespace QuickFix
             }
             qfSession_.Log.OnEvent(qfSession_.SessionID + " Socket Reader " + GetHashCode() + " accepting session " + qfSession_.SessionID + " from " + tcpClient_.Client.RemoteEndPoint);
             // FIXME do this here? qfSession_.HeartBtInt = QuickFix.Fields.Converters.IntConverter.Convert(message.GetField(Fields.Tags.HeartBtInt)); /// FIXME
-            qfSession_.Log.OnEvent(qfSession_.SessionID + " Acceptor heartbeat set to " + qfSession_.HeartBtInt + " seconds");
+            var sessionDetails = await qfSession_.GetDetails(cancellationToken);
+            qfSession_.Log.OnEvent(qfSession_.SessionID + " Acceptor heartbeat set to " + sessionDetails.HeartBtInt + " seconds");
             await qfSession_.SetResponder(responder_, cancellationToken);
             return true;
         }
 
         [Obsolete("This should be made private/protected")]
-        public void HandleException(Session.Session quickFixSession, System.Exception cause, TcpClient client)
-        {
-            HandleExceptionInternal(quickFixSession, cause);
-        }
+        public Task HandleException(Session.Session quickFixSession, System.Exception cause, TcpClient client, CancellationToken cancellationToken) => HandleExceptionInternal(quickFixSession, cause, cancellationToken);
 
         private bool IsAssumedSession(SessionID sessionID)
         {
@@ -267,7 +265,7 @@ namespace QuickFix
                    && !acceptorDescriptor_.GetAcceptedSessions().Any(kv => kv.Key.Equals(sessionID));
         }
 
-        private void HandleExceptionInternal(Session.Session quickFixSession, System.Exception cause)
+        private async Task HandleExceptionInternal(Session.Session quickFixSession, System.Exception cause, CancellationToken cancellationToken)
         {
             bool disconnectNeeded = true;
             string reason = cause.Message;
@@ -285,7 +283,8 @@ namespace QuickFix
             */
             if (realCause is System.Net.Sockets.SocketException)
             {
-                if (quickFixSession != null && quickFixSession.IsEnabled)
+                var sessionDetails = quickFixSession != default ? await quickFixSession.GetDetails(cancellationToken) : default;
+                if (sessionDetails != null && sessionDetails.IsEnabled)
                     reason = "Socket exception (" + tcpClient_.Client.RemoteEndPoint + "): " + cause.Message;
                 else
                     reason = "Socket (" + tcpClient_.Client.RemoteEndPoint + "): " + cause.Message;
