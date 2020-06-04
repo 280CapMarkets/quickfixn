@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using QuickFix.Fields.Converters;
+﻿using QuickFix.Fields.Converters;
 
 namespace QuickFix.Session
 {
     public class SessionConfiguration
     {
-        public int HeartBtInt { get; set; }
+        public int? HeartBtInt { get; set; }
+        public int? NextSenderMsgSeqNum { get; set; }
+        public int? NextTargetMsgSeqNum { get; set; }
         public bool? SendRedundantResendRequests { get; set; }
         public bool? ResendSessionLevelRejects { get; set; }
         public bool? CheckLatency { get; set; }

@@ -815,15 +815,17 @@ namespace UnitTests
         [Test]
         public void TestSettingNextTargetMsgSeqNum()
         {
-            session.NextTargetMsgSeqNum = 100;
-            Assert.That(session.NextTargetMsgSeqNum, Is.EqualTo(100));
+            session.Initialize(new SessionConfiguration {NextTargetMsgSeqNum = 100}, CancellationToken.None).Wait();
+            var sessionDetails = session.GetDetails(CancellationToken.None).GetAwaiter().GetResult();
+            Assert.That(sessionDetails.NextTargetMsgSeqNum, Is.EqualTo(100));
         }
 
         [Test]
         public void TestSettingNextSenderMsgSeqNum()
         {
-            session.NextSenderMsgSeqNum = 200;
-            Assert.That(session.NextSenderMsgSeqNum, Is.EqualTo(200));
+            session.Initialize(new SessionConfiguration {NextSenderMsgSeqNum = 200}, CancellationToken.None).Wait();
+            var sessionDetails = session.GetDetails(CancellationToken.None).GetAwaiter().GetResult();
+            Assert.That(sessionDetails.NextSenderMsgSeqNum, Is.EqualTo(200));
         }
 
         [Test]

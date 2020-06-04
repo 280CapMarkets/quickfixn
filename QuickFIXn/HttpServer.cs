@@ -356,8 +356,8 @@ namespace Acceptor
                 sbHtmlPageBody.Append(AddCell(sDetails.IsEnabled ? "yes" : "no"));
                 sbHtmlPageBody.Append(AddCell(sessionDetails.IsSessionTime ? "yes" : "no"));
                 sbHtmlPageBody.Append(AddCell(sDetails.IsLoggedOn ? "yes" : "no"));
-                sbHtmlPageBody.Append(AddCell(sessionDetails.NextTargetMsgSeqNum.ToString()));
-                sbHtmlPageBody.Append(AddCell(sessionDetails.NextSenderMsgSeqNum.ToString()));
+                sbHtmlPageBody.Append(AddCell(sDetails.NextTargetMsgSeqNum.ToString()));
+                sbHtmlPageBody.Append(AddCell(sDetails.NextSenderMsgSeqNum.ToString()));
                 sbHtmlPageBody.Append("</tr>");
             }
 
@@ -390,14 +390,14 @@ namespace Acceptor
             if (request.QueryString["next incoming"] != null)
             {
                 int value = Convert.ToInt16(request.QueryString["next incoming"]);
-                sessionDetails.NextTargetMsgSeqNum = value <= 0 ? 1 : value;
+                sessionDetails.Initialize(new SessionConfiguration{ NextTargetMsgSeqNum = value <= 0 ? 1 : value }, CancellationToken.None).Wait();
                 url = RemoveQueryStringByKey(urlOriginalString, "next incoming");
             }
 
             if (request.QueryString["Next Outgoing"] != null)
             {
                 int value = Convert.ToInt16(request.QueryString["Next Outgoing"]);
-                sessionDetails.NextSenderMsgSeqNum = value <= 0 ? 1 : value;
+                sessionDetails.Initialize(new SessionConfiguration{ NextSenderMsgSeqNum = value <= 0 ? 1 : value }, CancellationToken.None).Wait();
                 url = RemoveQueryStringByKey(urlOriginalString, "Next Outgoing");
             }
 
@@ -490,14 +490,14 @@ namespace Acceptor
             sbHtmlPageBody.Append(AddRow("ConnectionType", sDetails.IsInitiator?"initiator": "acceptor"));
             sbHtmlPageBody.Append(AddRow("SessionTime", sessionDetails.IsSessionTime));
             sbHtmlPageBody.Append(AddRow("LoggedOn", sDetails.IsLoggedOn));
-            sbHtmlPageBody.Append(AddRow("Next Incoming", sessionDetails.NextTargetMsgSeqNum, url));
-            sbHtmlPageBody.Append(AddRow("Next Outgoing", sessionDetails.NextSenderMsgSeqNum, url));
+            sbHtmlPageBody.Append(AddRow("Next Incoming", sDetails.NextTargetMsgSeqNum, url));
+            sbHtmlPageBody.Append(AddRow("Next Outgoing", sDetails.NextSenderMsgSeqNum, url));
             sbHtmlPageBody.Append(AddRow("SendRedundantResendRequests", sessionDetails.SendRedundantResendRequests, url));
             sbHtmlPageBody.Append(AddRow("CheckCompId", sessionDetails.CheckCompID, url));
-            sbHtmlPageBody.Append(AddRow("CheckLatency", sessionDetails.CheckLatency, url));
-            sbHtmlPageBody.Append(AddRow("MaxLatency", sessionDetails.MaxLatency, url));
-            sbHtmlPageBody.Append(AddRow("LogonTimeout", sessionDetails.LogonTimeout, url));
-            sbHtmlPageBody.Append(AddRow("LogoutTimeout", sessionDetails.LogoutTimeout, url));
+            sbHtmlPageBody.Append(AddRow("CheckLatency", sDetails.CheckLatency, url));
+            sbHtmlPageBody.Append(AddRow("MaxLatency", sDetails.MaxLatency, url));
+            sbHtmlPageBody.Append(AddRow("LogonTimeout", sDetails.LogonTimeout, url));
+            sbHtmlPageBody.Append(AddRow("LogoutTimeout", sDetails.LogoutTimeout, url));
             sbHtmlPageBody.Append(AddRow("ResetOnLogon", sessionDetails.ResetOnLogon, url));
             sbHtmlPageBody.Append(AddRow("ResetOnLogout", sessionDetails.ResetOnLogout, url));
             sbHtmlPageBody.Append(AddRow("ResetOnDisconnect", sessionDetails.ResetOnDisconnect, url));

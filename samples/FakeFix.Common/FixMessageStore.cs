@@ -13,7 +13,7 @@ namespace FakeFix.Common
 
         public FixMessageStore()
         {
-            CreationTime = DateTime.Now;
+            Reset();
         }
         public void Dispose() { }
 
@@ -37,7 +37,7 @@ namespace FakeFix.Common
 
         public void Reset()
         {
-            CreationTime = DateTime.Now;
+            CreationTime = DateTime.UtcNow;
             _nextSenderMsgSeqNum = _nextTargetMsgSeqNum = 1;
         } 
 

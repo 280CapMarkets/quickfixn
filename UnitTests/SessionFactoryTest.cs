@@ -105,12 +105,14 @@ namespace UnitTests
             settings.SetString(SessionSettings.TIMESTAMP_PRECISION, "SECOND");
             session = factory.Create(sessionID, settings, CancellationToken.None);
 
+            var sessionDetails = session.GetDetails(CancellationToken.None).GetAwaiter().GetResult();
+
             Assert.That(!session.SendRedundantResendRequests);
             Assert.That(!session.ResendSessionLevelRejects);
             Assert.That(!session.MillisecondsInTimeStamp);
             Assert.That(session.EnableLastMsgSeqNumProcessed);
             Assert.That(session.MaxMessagesInResendRequest, Is.EqualTo(2500));
-            Assert.That(session.SendLogoutBeforeTimeoutDisconnect);
+            Assert.That(sessionDetails.SendLogoutBeforeTimeoutDisconnect);
             Assert.That(session.IgnorePossDupResendRequests);
         }
 

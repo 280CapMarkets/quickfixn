@@ -237,15 +237,16 @@ namespace QuickFix
             var sessions =  _sessions.Values.Where(s => s.ConnectionState.IsDisconnected).ToArray();
             foreach (var session in sessions)
             {
-                // TODO: nmandzyk should be revised why we store all session in Session object
-                //Session session = Session.LookupSession(sessionID);
-                var sessionDetails = await session.GetDetails(cancellationToken);
-                if (!sessionDetails.IsEnabled) continue;
+                using (await session.CriticalSection.EnterAsync(cancellationToken))
+                {
+                    var sessionDetails = await session.GetDetails(cancellationToken);
+                    if (!sessionDetails.IsEnabled) continue;
 
-                if (session.IsNewSession)
-                    await session.Reset("New session", cancellationToken);
-                if (session.IsSessionTime)
-                    await DoConnect(session, _settings.Get(session.SessionID), cancellationToken);
+                    if (sessionDetails.IsNewSession)
+                        await session.Reset("New session", cancellationToken);
+                    if (session.IsSessionTime)
+                        await DoConnect(session, _settings.Get(session.SessionID), cancellationToken);
+                }
             }
         }
         #endregion

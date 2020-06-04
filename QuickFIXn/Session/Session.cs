@@ -48,7 +48,7 @@ namespace QuickFix.Session
         public bool IsSessionTime => schedule_.IsSessionTime(DateTime.UtcNow);
         private bool IsLoggedOn => state_.ReceivedLogon && state_.SentLogon;
 
-        public bool IsNewSession
+        private bool IsNewSession
         {
             get
             {
@@ -61,65 +61,53 @@ namespace QuickFix.Session
         /// <summary>
         /// Session setting for enabling message latency checks
         /// </summary>
-        public bool CheckLatency { get; private set; }
+        private bool CheckLatency { get; set; }
 
         /// <summary>
         /// Session setting for maximum message latency (in seconds)
         /// </summary>
-        public int MaxLatency { get; private set; }
+        private int MaxLatency { get; set; }
 
         /// <summary>
         /// Send a logout if counterparty times out and does not heartbeat
         /// in response to a TestRequeset. Defaults to false
         /// </summary>
-        public bool SendLogoutBeforeTimeoutDisconnect { get; private set; }
+        private bool SendLogoutBeforeTimeoutDisconnect { get; set; }
 
         /// <summary>
         /// Gets or sets the next expected outgoing sequence number
         /// </summary>
-        public int NextSenderMsgSeqNum
+        private int NextSenderMsgSeqNum
         {
-            get
-            {
-                return state_.GetNextSenderMsgSeqNum();
-            }
-            set
-            {
-                state_.SetNextSenderMsgSeqNum(value);
-            }
+            get => state_.GetNextSenderMsgSeqNum();
+            set => state_.SetNextSenderMsgSeqNum(value);
         }
 
         /// <summary>
         /// Gets or sets the next expected incoming sequence number
         /// </summary>
-        public int NextTargetMsgSeqNum
+        private int NextTargetMsgSeqNum
         {
-            get
-            {
-                return state_.GetNextTargetMsgSeqNum();
-            }
-            set
-            {
-                state_.SetNextTargetMsgSeqNum(value);
-            }
+            get => state_.GetNextTargetMsgSeqNum();
+            set => state_.SetNextTargetMsgSeqNum(value);
         }
 
         /// <summary>
         /// Logon timeout in seconds
         /// </summary>
-        public int LogonTimeout
+        private int LogonTimeout
         {
-            get { return state_.LogonTimeout; }
-            private set { state_.LogonTimeout = value; }
+            get => state_.LogonTimeout;
+            set => state_.LogonTimeout = value;
         }
 
         /// <summary>
         /// Logout timeout in seconds
         /// </summary>
-        public int LogoutTimeout
+        private int LogoutTimeout
         {
-            get { return state_.LogoutTimeout; }
-            private set { state_.LogoutTimeout = value; }
+            get => state_.LogoutTimeout;
+            set => state_.LogoutTimeout = value;
         }
 
         // unsynchronized properties
@@ -270,7 +258,7 @@ namespace QuickFix.Session
             else
                 log = new NullLog();
 
-            state_ = new SessionState(log, configuration.HeartBtInt)
+            state_ = new SessionState(log, configuration.HeartBtInt.Value)
             {
                 MessageStore = storeFactory.Create(sessID)
             };
@@ -301,6 +289,9 @@ namespace QuickFix.Session
 
         private void InnerInitialize(SessionConfiguration configuration)
         {
+            if (configuration.HeartBtInt.HasValue) state_.HeartBtInt = configuration.HeartBtInt.Value;
+            if (configuration.NextSenderMsgSeqNum.HasValue) NextSenderMsgSeqNum = configuration.NextSenderMsgSeqNum.Value;
+            if (configuration.NextTargetMsgSeqNum.HasValue) NextTargetMsgSeqNum = configuration.NextTargetMsgSeqNum.Value;
             if (configuration.CheckCompId.HasValue) CheckCompID = configuration.CheckCompId.Value;
             if (configuration.CheckLatency.HasValue) CheckLatency = configuration.CheckLatency.Value;
             if (configuration.MaxLatency.HasValue) MaxLatency = configuration.MaxLatency.Value;
@@ -387,7 +378,15 @@ namespace QuickFix.Session
                     IsLoggedOn = IsLoggedOn,
                     HeartBtInt =  state_.HeartBtInt,
                     IsEnabled = state_.IsEnabled,
-                    HasResponder = HasResponder
+                    HasResponder = HasResponder,
+                    IsNewSession =  IsNewSession,
+                    CheckLatency = CheckLatency,
+                    MaxLatency = MaxLatency,
+                    SendLogoutBeforeTimeoutDisconnect = SendLogoutBeforeTimeoutDisconnect,
+                    NextSenderMsgSeqNum = NextSenderMsgSeqNum,
+                    NextTargetMsgSeqNum = NextTargetMsgSeqNum,
+                    LogonTimeout = LogonTimeout,
+                    LogoutTimeout = LogoutTimeout
                 };
             }
         }
@@ -756,7 +755,7 @@ namespace QuickFix.Session
             
             //we already started dedicated task for client session service, don't need to do this here.
             //TODO: dedicated task should be started for server
-            //Next(); 
+            //await Next(cancellationToken); 
 
         }
 
