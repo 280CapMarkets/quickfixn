@@ -67,7 +67,7 @@ namespace UnitTests
                 "8=FIXT.1.19=41935=634=675049=MA52=20200210-15:25:06.69056=280AXEOT1128=923=1054893731-0+128=R26=1054893731-0+055=[N/A]48=79642BXT522=1454=1455=US79642BXT50456=4167=NONE762=MUNI54=227=20000015=USD232=1233=MINQTY234=5000423=144=112.796640=112.7960=20200210-15:24:59236=1.0453=1448=XrefID-33447=D452=75961=MNPrice22022=120,300,900,180020120=ClientAxe-Orders20014=0.05620015=0.02829735=1054893731-0+010=019";
 
             var receivedMessageCount = 0;
-            var expectedMessageCount = 10000;
+            var expectedMessageCount = 1000000;
             var server = new Server(9212);
             var serverSideTcpClientTask = server.WaitForClient(CancellationToken.None);
             await Task.Delay(2000);
@@ -116,11 +116,17 @@ namespace UnitTests
             {
                 using var streamWriter = new StreamWriter(stream, CharEncoding.DefaultEncoding, 1024, true);
                 for (var i = 0; i < count; i++)
+                { 
+                    //if(i== 6) streamWriter.Flush();
+                    
                     chunckedMessage.ForEach(chunk =>
                     {
                         streamWriter.Write(chunk);
-                        streamWriter.Flush();
                     });
+                    //streamWriter.Flush();
+                }
+                streamWriter.Flush();
+
             }, cancellationTokenSource.Token);
         }
 
