@@ -154,7 +154,7 @@ namespace QuickFix
                     return;
                 }
 
-                var dlls = Directory.GetFiles(directory, "quickfix.*.dll");
+                var dlls = Directory.GetFiles(directory, "QuickFix.*.dll");
                 foreach (var path in dlls)
                 {
                     Assembly.LoadFrom(path);
@@ -188,7 +188,7 @@ namespace QuickFix
             var assemblies = AppDomain
                 .CurrentDomain
                 .GetAssemblies()
-                .Where(assembly => !assembly.IsDynamic)
+                .Where(assembly => !assembly.IsDynamic && assembly.GetName().Name.StartsWith("QuickFix"))
                 .ToList();
             return assemblies;
         }
